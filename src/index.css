@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: oklch(98% 0.005 80);
+  --ink: oklch(22% 0.01 250);
+  --ink-2: oklch(40% 0.01 250);
+  --ink-3: oklch(60% 0.01 250);
+  --line: oklch(85% 0.008 250);
+  --line-2: oklch(92% 0.005 250);
+  --paper: #ffffff;
+  --accent: oklch(62% 0.13 200);
+  --accent-soft: oklch(93% 0.04 200);
+  --warn: oklch(70% 0.13 60);
+  --warn-soft: oklch(94% 0.05 60);
+  --ok: oklch(65% 0.13 155);
+  --ok-soft: oklch(94% 0.04 155);
+  --bad: oklch(60% 0.17 25);
+  --bad-soft: oklch(94% 0.04 25);
+  --radius: 6px;
+  --stroke: 1.5px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { min-height: 100vh; }
+
+/* ── Chip / Badge ── */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1.5px solid var(--line);
+  font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  color: var(--ink-2); background: var(--paper); white-space: nowrap;
+}
+.chip-accent { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.chip-ok     { border-color: var(--ok);     color: var(--ok);     background: var(--ok-soft); }
+.chip-warn   { border-color: var(--warn);   color: var(--warn);   background: var(--warn-soft); }
+.chip-bad    { border-color: var(--bad);    color: var(--bad);    background: var(--bad-soft); }
+
+/* ── Card ── */
+.card {
+  border: 1.5px solid var(--line); border-radius: var(--radius);
+  background: var(--paper); padding: 14px;
+}
+
+/* ── KPI block ── */
+.kpi {
+  border: 1.5px solid var(--line); border-radius: var(--radius);
+  padding: 14px; background: var(--paper);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 6px;
+  border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper);
+  font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-secondary { background: var(--paper); color: var(--ink); }
+.btn-ghost     { background: transparent; border-color: var(--line); color: var(--ink-2); }
+.btn-accent    { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+
+/* ── Input / Select / Textarea ── */
+.input {
+  border: 1.5px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; font-family: inherit; font-size: 13px;
+  background: var(--paper); width: 100%; color: var(--ink); outline: none;
+}
+.input:focus { border-color: var(--accent); }
+
+.field-label {
+  font-size: 11px; font-weight: 600; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  display: block; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Table ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+  text-align: left; padding: 8px 10px;
+  border-bottom: 1.5px solid var(--line);
+  font-weight: 600; color: var(--ink-2); background: var(--line-2);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.data-table td { padding: 9px 10px; border-bottom: 1px solid var(--line-2); color: var(--ink); }
+.data-table tr:hover td { background: var(--line-2); cursor: pointer; }
+
+/* ── Cluster labels ── */
+.cluster { display: inline-block; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.cluster-1 { background: oklch(92% 0.06 150); color: oklch(35% 0.13 150); }
+.cluster-2 { background: oklch(92% 0.06 85);  color: oklch(38% 0.13 85);  }
+.cluster-3 { background: oklch(92% 0.06 55);  color: oklch(40% 0.14 55);  }
+.cluster-4 { background: oklch(92% 0.06 25);  color: oklch(40% 0.15 25);  }
+
+/* ── Leaflet ── */
+.leaflet-container { border-radius: var(--radius); }
+
+/* ── Scrollbar hide ── */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Fade in ── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.2s ease; }
+
+/* ── Responsive helpers ── */
+@media (max-width: 768px) {
+  .hide-mobile { display: none !important; }
+  .nav-links   { display: none !important; }
+  .mobile-menu-btn { display: flex !important; }
+}
