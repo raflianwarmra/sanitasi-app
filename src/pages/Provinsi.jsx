@@ -3,6 +3,7 @@ import Chart from 'chart.js/auto';
 import { useProvinsi, useKabkot, useIPAL, useIPLT } from '../hooks/useSheetData';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
+import SearchableSelect from '../components/SearchableSelect';
 
 function fmtPct(v, digits = 2) { return v == null ? '—' : `${v.toFixed(digits)}%`; }
 function statusColor(v) {
@@ -282,7 +283,7 @@ export default function Provinsi({ onNavigate }) {
       />
 
       {/* Header */}
-      <div style={{ padding: '20px 24px', background: 'var(--paper)', borderBottom: '1.5px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div className="page-pad" style={{ paddingTop: 20, paddingBottom: 20, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.08em', marginBottom: 4 }}>
             DASHBOARD KINERJA SANITASI DAERAH
@@ -290,18 +291,17 @@ export default function Provinsi({ onNavigate }) {
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>{selectedProv.provinsi}</div>
           <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Monitoring Akses Layak, Aman, BABS & Infrastruktur · Data 2025</div>
         </div>
-        <select
-          className="input"
+        <SearchableSelect
           style={{ width: 240 }}
           value={selectedProv.provinsi}
-          onChange={(e) => setSelected(provinces.find((p) => p.provinsi === e.target.value) ?? null)}
-        >
-          {sorted.map((p) => <option key={p.provinsi} value={p.provinsi}>{p.provinsi}</option>)}
-        </select>
+          onChange={(v) => setSelected(provinces.find((p) => p.provinsi === v) ?? null)}
+          options={sorted.map((p) => p.provinsi)}
+          placeholder="Pilih provinsi"
+        />
       </div>
 
       {/* KPI Cards with Chart.js */}
-      <div style={{ padding: '16px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+      <div className="page-pad" style={{ paddingTop: 16, paddingBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         <KpiCard title="Akses Layak (Termasuk Aman)" accent="#8b5cf6" current={selectedProv.layak.y2025} target={100} canvasRef={canvasLayak} />
         <KpiCard title="Akses Aman" accent="#14b8a6" current={selectedProv.aman.y2025} target={selectedProv.aman.target2029} canvasRef={canvasAman}>
           <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', marginTop: 4 }}>
@@ -316,7 +316,7 @@ export default function Provinsi({ onNavigate }) {
       </div>
 
       {/* Ladder Sanitasi */}
-      <div style={{ padding: '0 24px 16px' }}>
+      <div className="page-pad" style={{ paddingBottom: 16 }}>
         <div className="card" style={{ borderTop: '4px solid #3b82f6' }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Ladder Sanitasi · 2025</div>
           <div style={{ height: 80, position: 'relative' }}>
@@ -343,7 +343,7 @@ export default function Provinsi({ onNavigate }) {
       </div>
 
       {/* Infrastructure Summary */}
-      <div style={{ padding: '0 24px 16px' }}>
+      <div className="page-pad" style={{ paddingBottom: 16 }}>
         <div className="card" style={{ borderTop: '4px solid #f59e0b' }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Data Infrastruktur IPAL & IPLT</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
@@ -377,7 +377,7 @@ export default function Provinsi({ onNavigate }) {
 
       {/* Alerts */}
       {(kabsNoIPLT.length > 0 || brokenUnits.length > 0) && (
-        <div style={{ padding: '0 24px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+        <div className="page-pad" style={{ paddingBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
           {kabsNoIPLT.length > 0 && (
             <div className="card" style={{ background: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--bad)' }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--bad)', marginBottom: 8 }}>
@@ -412,7 +412,7 @@ export default function Provinsi({ onNavigate }) {
       )}
 
       {/* Geo chart */}
-      <div style={{ padding: '0 24px 16px' }}>
+      <div className="page-pad" style={{ paddingBottom: 16 }}>
         <div className="card" style={{ borderTop: '4px solid #6366f1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Grafik Sebaran Capaian Kab/Kota · 2025</div>
@@ -429,7 +429,7 @@ export default function Provinsi({ onNavigate }) {
       </div>
 
       {/* Tabular */}
-      <div style={{ padding: '0 24px 32px' }}>
+      <div className="page-pad" style={{ paddingBottom: 32 }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: 15 }}>Data Tabular Kab/Kota · {selectedProv.provinsi}</span>

@@ -4,6 +4,7 @@ import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LogCatatanForm from '../components/LogCatatanForm';
 import LogCatatanList from '../components/LogCatatanList';
+import SearchableSelect from '../components/SearchableSelect';
 
 function statusStyle(isFunctioning, statusText) {
   if (!statusText) return { color: 'var(--ink-3)', label: 'Tidak diketahui' };
@@ -229,7 +230,7 @@ export default function Infrastruktur({ onNavigate }) {
         onNavigate={onNavigate}
       />
 
-      <div style={{ padding: '16px 24px 10px', background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
+      <div className="page-pad" style={{ paddingTop: 16, paddingBottom: 10, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>Infrastruktur Sanitasi</div>
@@ -241,24 +242,20 @@ export default function Infrastruktur({ onNavigate }) {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <select
-            className="input"
-            style={{ width: 180, fontSize: 12 }}
+          <SearchableSelect
+            style={{ width: 180 }}
             value={filterProv}
-            onChange={(e) => { setFilterProv(e.target.value); setFilterKab(''); }}
-          >
-            <option value="">Semua Provinsi</option>
-            {provinsiOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <select
-            className="input"
-            style={{ width: 200, fontSize: 12 }}
+            onChange={(v) => { setFilterProv(v); setFilterKab(''); }}
+            options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiOptions.map((p) => ({ value: p, label: p }))]}
+            placeholder="Semua Provinsi"
+          />
+          <SearchableSelect
+            style={{ width: 200 }}
             value={filterKab}
-            onChange={(e) => setFilterKab(e.target.value)}
-          >
-            <option value="">Semua Kab/Kota</option>
-            {kabkotOptions.map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
+            onChange={setFilterKab}
+            options={[{ value: '', label: 'Semua Kab/Kota' }, ...kabkotOptions.map((k) => ({ value: k, label: k }))]}
+            placeholder="Semua Kab/Kota"
+          />
           <span style={{ width: 1, background: 'var(--line)', margin: '0 2px', alignSelf: 'stretch' }} />
           {['Semua', 'IPAL', 'IPLT'].map((t) => (
             <button key={t} className={`btn ${filter === t ? 'btn-secondary' : 'btn-ghost'}`}
@@ -283,10 +280,10 @@ export default function Infrastruktur({ onNavigate }) {
       {loading ? (
         <LoadingSpinner text="Memuat data infrastruktur..." />
       ) : (
-        <div style={{ padding: '16px 24px 32px', display: 'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap: 16 }}>
+        <div className="page-pad" style={{ paddingBottom: 32, display: 'grid', gridTemplateColumns: selected ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)', gap: 16 }}>
           <div>
             {/* v1-style statistics: IPLT row + IPAL row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 16 }}>
               {[
                 { type: 'IPLT', accent: '#6366f1', unit: 'KK', unitLong: 'Kepala Keluarga', s: stats.IPLT },
                 { type: 'IPAL', accent: '#0d9488', unit: 'SR', unitLong: 'Sambungan Rumah', s: stats.IPAL },
