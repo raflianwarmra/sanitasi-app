@@ -336,7 +336,8 @@ export default function Infrastruktur({ onNavigate }) {
             </div>
 
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              <table className="data-table">
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table className="data-table" style={{ minWidth: 640 }}>
                 <thead>
                   <tr>
                     <th>Nama</th>
@@ -388,6 +389,7 @@ export default function Infrastruktur({ onNavigate }) {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
 

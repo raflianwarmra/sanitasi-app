@@ -437,8 +437,8 @@ export default function Provinsi({ onNavigate }) {
               Lihat profil kab/kota →
             </button>
           </div>
-          <div style={{ maxHeight: 500, overflowY: 'auto' }} className="no-scrollbar">
-            <table className="data-table">
+          <div style={{ maxHeight: 500, overflow: 'auto' }} className="no-scrollbar">
+            <table className="data-table" style={{ minWidth: 480 }}>
               <thead>
                 <tr>
                   {[['kabkot','Kabupaten/Kota'],['aman','Akses Aman'],['layak','Akses Layak'],['babs','BABS Terbuka']].map(([k, l]) => (

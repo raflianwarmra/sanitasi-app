@@ -64,7 +64,8 @@ function InfrastrukturCard({ kab, infraHere, logs }) {
             <span style={{ fontWeight: 600, fontSize: 12 }}>{type}</span>
             <span className="chip" style={{ fontSize: 10 }}>{items.length} unit</span>
           </div>
-          <table className="data-table">
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table className="data-table" style={{ minWidth: 600 }}>
             <thead>
               <tr>
                 <th>Nama</th><th>Kapasitas</th><th>Utilisasi</th><th>Tahun</th><th>Status</th><th>Catatan</th>
@@ -93,6 +94,7 @@ function InfrastrukturCard({ kab, infraHere, logs }) {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
 
@@ -139,7 +141,7 @@ function KelembagaanCard({ kel, kab }) {
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Operator</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
                 {[['Status Operator', kel.statusOperator], ['Nama Operator', kel.namaOperator]].map(([l, v]) => (
                   <div key={l} style={{ padding: 10, background: 'var(--line-2)', borderRadius: 5, borderLeft: '3px solid var(--line)' }}>
                     <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>{l}</div>
