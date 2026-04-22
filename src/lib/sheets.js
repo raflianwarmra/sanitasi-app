@@ -191,17 +191,18 @@ export function normalizeInfra(raw, type) {
   }).filter((i) => i.nama || i.kabkot);
 }
 
-// log catatan infrastruktur sheet
+// Log Catatan Infras sheet: date, provinsi, kabupaten/kota, infrastruktur, IPAL/IPLT, user, sumber informasi, catatan
 export function normalizeLog(raw) {
   return raw.map((r, idx) => ({
     id: idx,
-    kode: String(pick(r, 'kode kabupaten', 'kode')).trim(),
+    tanggal: pick(r, 'date', 'tanggal'),
+    provinsi: pick(r, 'provinsi'),
+    kabkot: pick(r, 'kabupaten/kota', 'kabupaten', 'kabkot'),
     infrastruktur: pick(r, 'infrastruktur', 'nama'),
-    tanggal: pick(r, 'tanggal', 'date'),
+    type: pick(r, 'ipal/iplt', 'type'),
+    user: pick(r, 'user'),
     sumber: pick(r, 'sumber informasi', 'sumber'),
     catatan: pick(r, 'catatan', 'notes'),
-    user: pick(r, 'user', 'nama'),
-    timestamp: pick(r, 'timestamp'),
     raw: r,
   })).filter((l) => l.catatan || l.infrastruktur);
 }
@@ -239,17 +240,17 @@ export function clearCache() { cache = {}; cacheTime = {}; }
 // ── Write log entry ───────────────────────────────────────────
 // Uses a Google Apps Script web app URL for writes (read-only via gviz).
 // If VITE_SCRIPT_URL is set, POST to it; otherwise store in in-memory cache only.
-export async function appendLog({ kode, infrastruktur, tanggal, sumber, catatan, user = '' }) {
+export async function appendLog({ date, provinsi, kabkot, infrastruktur, type, user = '', sumber, catatan }) {
   const scriptUrl = import.meta.env.VITE_SCRIPT_URL;
-  const timestamp = new Date().toISOString();
   const row = {
-    'kode kabupaten/kota': kode,
+    date,
+    provinsi,
+    'kabupaten/kota': kabkot,
     infrastruktur,
-    tanggal,
+    'ipal/iplt': type,
+    user,
     'sumber informasi': sumber,
     catatan,
-    user,
-    timestamp,
   };
 
   if (scriptUrl) {

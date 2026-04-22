@@ -23,12 +23,14 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
     setSaveError(null);
     try {
       await appendLog({
-        kode: infra.kode,
+        date: tanggal,
+        provinsi: infra.provinsi,
+        kabkot: infra.kabkot,
         infrastruktur: infra.nama,
-        tanggal,
+        type: infra.type,
+        user: resolvedUser,
         sumber,
         catatan: catatan.trim(),
-        user: resolvedUser,
       });
       onSuccess?.();
       onClose();

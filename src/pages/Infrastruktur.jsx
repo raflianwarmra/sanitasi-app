@@ -18,10 +18,13 @@ function utilPct(infra) {
 }
 
 function logsFor(logs, infra) {
-  return logs.filter((l) =>
-    (l.kode && String(l.kode) === String(infra.kode)) ||
-    (l.infrastruktur && l.infrastruktur.toLowerCase() === infra.nama.toLowerCase())
-  );
+  const name = (infra.nama || '').toLowerCase();
+  const kk = (infra.kabkot || '').toLowerCase();
+  return logs.filter((l) => {
+    const lName = (l.infrastruktur || '').toLowerCase();
+    const lKk = (l.kabkot || '').toLowerCase();
+    return lName && lName === name && (!kk || !lKk || lKk === kk);
+  });
 }
 
 function InfraPanel({ infra, logs, onClose, reloadLogs }) {

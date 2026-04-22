@@ -73,8 +73,7 @@ function InfrastrukturCard({ kab, infraHere, logs }) {
               {items.map((infra, i) => {
                 const util = infra.kapasitas && infra.kapasitasTerpakai ? (infra.kapasitasTerpakai / infra.kapasitas * 100) : null;
                 const n = logs.filter((l) =>
-                  String(l.kode) === String(infra.kode) ||
-                  (l.infrastruktur && l.infrastruktur.toLowerCase() === infra.nama.toLowerCase())
+                  l.infrastruktur && l.infrastruktur.toLowerCase() === infra.nama.toLowerCase()
                 ).length;
                 return (
                   <tr key={i}>
@@ -105,7 +104,7 @@ function InfrastrukturCard({ kab, infraHere, logs }) {
       <div style={{ marginTop: 14 }}>
         <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 8 }}>Catatan Terbaru</div>
         <LogCatatanList
-          logs={logs.filter((l) => String(l.kode) === String(kab.kode))}
+          logs={logs.filter((l) => (l.kabkot || '').toLowerCase() === (kab.kabkot || '').toLowerCase())}
           emptyText="Belum ada catatan infrastruktur untuk kab/kota ini."
         />
       </div>

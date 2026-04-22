@@ -149,7 +149,7 @@ function doPost(e) {
 - **GET the URL returns "Halaman Tidak Ditemukan" / "Sorry, unable to open":** deployment access is not "Anyone" (or deployment was never created as a Web App). Redeploy with access = Anyone.
 - **POST returns HTML instead of JSON in curl:** the first response is a 302 redirect that curl follows as GET. That's normal — it doesn't mean POST failed. Check the sheet for a new row.
 - **doGet shows `tabFound: false`:** the sheet tab name differs from `Log Catatan Infras`. Either rename the tab or change `DEFAULT_TAB` in the script.
-- **Nothing appears in the sheet, but no errors:** headers in row 1 of the tab don't match the lowercase keys the client sends. Required headers: `kode kabupaten/kota`, `infrastruktur`, `tanggal`, `sumber informasi`, `catatan`, `user`, `timestamp`.
+- **Nothing appears in the sheet, but no errors:** headers in row 1 of the tab don't match the lowercase keys the client sends. Required headers: `date`, `provinsi`, `kabupaten/kota`, `infrastruktur`, `ipal/iplt`, `user`, `sumber informasi`, `catatan`.
 
 If `VITE_SCRIPT_URL` is not set, the app still works: catatan appear in the UI for the current session but are not saved to the sheet. The form shows a warning banner in that case.
 
@@ -164,7 +164,7 @@ Apps Script web apps do not return CORS headers. We send `URLSearchParams` (form
 ### `Log Catatan Infras` (needs these headers in row 1, case-insensitive)
 
 ```
-Kode Kabupaten/Kota | Infrastruktur | Tanggal | Sumber Informasi | Catatan | User | Timestamp
+date | provinsi | kabupaten/kota | infrastruktur | IPAL/IPLT | user | sumber informasi | catatan
 ```
 
 The Apps Script `doPost` above matches by lowercased header name and tolerates extra columns.
