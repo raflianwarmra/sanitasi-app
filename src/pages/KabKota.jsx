@@ -4,6 +4,7 @@ import Breadcrumb from '../components/Breadcrumb';
 import KpiCard from '../components/KpiCard';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import LogCatatanList from '../components/LogCatatanList';
+import SearchableSelect from '../components/SearchableSelect';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter } from '../lib/cluster';
 
 // ── Akses card ─────────────────────────────────────────────────
@@ -134,7 +135,7 @@ function KelembagaanCard({ kel, kab }) {
       )}
 
       {kel && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
+        <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Operator</div>
@@ -254,8 +255,8 @@ export default function KabKota({ onNavigate, initialProvinsi }) {
         onNavigate={onNavigate}
       />
 
-      <div style={{ padding: '18px 24px', background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end' }}>
+      <div className="page-pad" style={{ paddingTop: 18, paddingBottom: 18, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
+        <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end' }}>
           <div>
             <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.08em', marginBottom: 4 }}>
               PROFIL KAB/KOTA · {filterProv || 'NASIONAL'}
@@ -277,20 +278,26 @@ export default function KabKota({ onNavigate, initialProvinsi }) {
             )}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <select className="input" style={{ width: 180 }} value={filterProv} onChange={(e) => { setFilterProv(e.target.value); setSelected(null); }}>
-              <option value="">Semua Provinsi</option>
-              {provinsiList.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <select className="input" style={{ width: 220 }} value={selectedKab?.kode ?? ''} onChange={(e) => setSelected(filtered.find((k) => k.kode === e.target.value) ?? null)}>
-              <option value="">Pilih Kab/Kota</option>
-              {filtered.map((k) => <option key={k.kode || k.kabkot} value={k.kode}>{k.kabkot}</option>)}
-            </select>
+            <SearchableSelect
+              style={{ width: 180 }}
+              value={filterProv}
+              onChange={(v) => { setFilterProv(v); setSelected(null); }}
+              options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiList.map((p) => ({ value: p, label: p }))]}
+              placeholder="Semua Provinsi"
+            />
+            <SearchableSelect
+              style={{ width: 220 }}
+              value={selectedKab?.kode ?? ''}
+              onChange={(v) => setSelected(filtered.find((k) => k.kode === v) ?? null)}
+              options={filtered.map((k) => ({ value: k.kode, label: k.kabkot }))}
+              placeholder="Pilih Kab/Kota"
+            />
           </div>
         </div>
       </div>
 
       {selectedKab ? (
-        <div style={{ padding: '20px 24px', display: 'grid', gap: 16 }}>
+        <div className="page-pad" style={{ paddingTop: 20, paddingBottom: 20, display: 'grid', gap: 16 }}>
           <AksesCard kab={selectedKab} />
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
