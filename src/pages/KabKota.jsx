@@ -258,7 +258,7 @@ export default function KabKota({ onNavigate, initialProvinsi }) {
       />
 
       <div className="page-pad" style={{ paddingTop: 18, paddingBottom: 18, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
-        <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end' }}>
+        <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 16, alignItems: 'end' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.08em', marginBottom: 4 }}>
               PROFIL KAB/KOTA · {filterProv || 'NASIONAL'}
@@ -297,7 +297,7 @@ export default function KabKota({ onNavigate, initialProvinsi }) {
       </div>
 
       {selectedKab ? (
-        <div className="page-pad" style={{ paddingTop: 20, paddingBottom: 20, display: 'grid', gap: 16 }}>
+        <div className="page-pad" style={{ paddingTop: 20, paddingBottom: 20, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
           <AksesCard kab={selectedKab} />
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
