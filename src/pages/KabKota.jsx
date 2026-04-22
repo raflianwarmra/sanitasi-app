@@ -259,12 +259,12 @@ export default function KabKota({ onNavigate, initialProvinsi }) {
 
       <div className="page-pad" style={{ paddingTop: 18, paddingBottom: 18, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
         <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end' }}>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.08em', marginBottom: 4 }}>
               PROFIL KAB/KOTA · {filterProv || 'NASIONAL'}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.01em' }}>
+              <div className="title-mobile" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.01em', wordBreak: 'break-word' }}>
                 {selectedKab?.kabkot ?? 'Pilih Kab/Kota'}
               </div>
               {letter && (
@@ -279,16 +279,14 @@ export default function KabKota({ onNavigate, initialProvinsi }) {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
             <SearchableSelect
-              style={{ width: 180 }}
               value={filterProv}
               onChange={(v) => { setFilterProv(v); setSelected(null); }}
               options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiList.map((p) => ({ value: p, label: p }))]}
               placeholder="Semua Provinsi"
             />
             <SearchableSelect
-              style={{ width: 220 }}
               value={selectedKab?.kode ?? ''}
               onChange={(v) => setSelected(filtered.find((k) => k.kode === v) ?? null)}
               options={filtered.map((k) => ({ value: k.kode, label: k.kabkot }))}
