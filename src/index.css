@@ -125,4 +125,5 @@ html, body {
   .mobile-menu-btn { display: flex !important; }
   .page-pad  { padding-left: 14px; padding-right: 14px; }
   .stack-mobile { grid-template-columns: 1fr !important; }
+  .title-mobile { font-size: 20px !important; }
 }
