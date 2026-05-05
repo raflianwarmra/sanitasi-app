@@ -23,6 +23,30 @@
   --stroke: 1.5px;
 }
 
+[data-theme="dark"] {
+  --bg: oklch(18% 0.01 250);
+  --ink: oklch(94% 0.005 250);
+  --ink-2: oklch(78% 0.01 250);
+  --ink-3: oklch(58% 0.01 250);
+  --line: oklch(32% 0.012 250);
+  --line-2: oklch(26% 0.01 250);
+  --paper: oklch(22% 0.012 250);
+  --accent: oklch(72% 0.13 200);
+  --accent-soft: oklch(30% 0.06 200);
+  --warn: oklch(78% 0.13 70);
+  --warn-soft: oklch(32% 0.06 60);
+  --ok: oklch(72% 0.13 155);
+  --ok-soft: oklch(30% 0.06 155);
+  --bad: oklch(70% 0.17 25);
+  --bad-soft: oklch(32% 0.07 25);
+}
+
+[data-theme="dark"] .cluster-1 { background: oklch(30% 0.06 150); color: oklch(85% 0.13 150); }
+[data-theme="dark"] .cluster-2 { background: oklch(30% 0.06 85);  color: oklch(85% 0.13 85);  }
+[data-theme="dark"] .cluster-3 { background: oklch(30% 0.06 55);  color: oklch(85% 0.14 55);  }
+[data-theme="dark"] .cluster-4 { background: oklch(30% 0.06 25);  color: oklch(85% 0.15 25);  }
+[data-theme="dark"] img.leaflet-tile { filter: brightness(0.85) invert(1) hue-rotate(180deg) saturate(0.9); }
+
 * { box-sizing: border-box; }
 
 html, body {

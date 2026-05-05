@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '../lib/theme';
 
 const NAV_ITEMS = [
   { label: 'Beranda', path: '/' },
@@ -9,6 +10,7 @@ const NAV_ITEMS = [
 
 export default function TopNav({ active, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggle } = useTheme();
 
   return (
     <>
@@ -60,6 +62,22 @@ export default function TopNav({ active, onNavigate }) {
         {/* Right side */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span className="chip hide-mobile">2025 · Q1</span>
+
+          {/* Theme toggle */}
+          <button
+            onClick={toggle}
+            aria-label={theme === 'dark' ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
+            title={theme === 'dark' ? 'Mode terang' : 'Mode gelap'}
+            style={{
+              width: 36, height: 36, border: '1.5px solid var(--line)', borderRadius: 6,
+              background: 'var(--paper)', color: 'var(--ink)', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, padding: 0,
+            }}
+          >
+            {theme === 'dark' ? '☀' : '☾'}
+          </button>
+
 
           {/* Hamburger (mobile) */}
           <button

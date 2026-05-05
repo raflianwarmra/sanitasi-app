@@ -20,24 +20,28 @@ function csvUrl(sheet) {
 function parseCSV(text) {
   const clean = text.replace(/^\xEF\xBB\xBF/, '');
   const rows = [];
-  const lines = clean.split(/\r?\n/);
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const cells = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if (ch === ',' && !inQ) {
-        cells.push(cur.trim()); cur = '';
-      } else {
-        cur += ch;
-      }
+  let cells = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (ch === '"') {
+      if (inQ && clean[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) {
+      cells.push(cur.trim()); cur = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQ) {
+      if (ch === '\r' && clean[i + 1] === '\n') i++;
+      cells.push(cur.trim()); cur = '';
+      if (cells.some((c) => c)) rows.push(cells);
+      cells = [];
+    } else {
+      cur += ch;
     }
+  }
+  if (cur || cells.length) {
     cells.push(cur.trim());
-    rows.push(cells);
+    if (cells.some((c) => c)) rows.push(cells);
   }
   return rows;
 }
