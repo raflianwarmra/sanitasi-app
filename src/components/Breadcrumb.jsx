@@ -1,29 +1,40 @@
+import Icon from './Icon';
+
 export default function Breadcrumb({ path, onNavigate }) {
   return (
-    <div style={{
-      fontSize: 12, color: 'var(--ink-3)', padding: '10px 24px',
-      borderBottom: '1.5px solid var(--line-2)',
-      fontFamily: 'JetBrains Mono', display: 'flex', gap: 0, flexWrap: 'wrap',
+    <nav aria-label="Breadcrumb" style={{
+      borderBottom: '1px solid var(--line-2)',
       background: 'var(--paper)',
     }}>
-      {path.map((item, i) => (
-        <span key={i} style={{ display: 'flex', alignItems: 'center' }}>
-          {i > 0 && <span style={{ margin: '0 6px', color: 'var(--line)' }}>/</span>}
-          {item.path ? (
-            <button
-              onClick={() => onNavigate?.(item.path)}
-              style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                color: 'var(--accent)', fontFamily: 'JetBrains Mono', fontSize: 12,
-              }}
-            >
-              {item.label}
-            </button>
-          ) : (
-            <span>{typeof item === 'string' ? item : item.label}</span>
-          )}
-        </span>
-      ))}
-    </div>
+      <div className="page-wrap page-pad" style={{
+        fontSize: 12, color: 'var(--ink-3)', paddingTop: 9, paddingBottom: 9,
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2,
+      }}>
+        {path.map((item, i) => {
+          const label = typeof item === 'string' ? item : item.label;
+          const isLast = i === path.length - 1;
+          return (
+            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {i > 0 && <Icon name="chevronRight" size={12} style={{ color: 'var(--line)', margin: '0 3px' }} />}
+              {item.path && !isLast ? (
+                <button
+                  onClick={() => onNavigate?.(item.path)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    color: 'var(--ink-2)', fontSize: 12, fontFamily: 'inherit', fontWeight: 500,
+                  }}
+                >
+                  {label}
+                </button>
+              ) : (
+                <span aria-current={isLast ? 'page' : undefined} style={{ fontWeight: isLast ? 600 : 400, color: isLast ? 'var(--ink)' : undefined }}>
+                  {label}
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

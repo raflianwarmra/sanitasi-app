@@ -5,7 +5,11 @@
  *
  * Sheet: "log infrastruktur"
  * Columns: id_infra | tanggal | sumber | catatan | user | timestamp
+ *
+ * Note: this file runs in the Apps Script runtime, not in the app bundle.
  */
+/* eslint-disable no-unused-vars */
+/* global SpreadsheetApp, ContentService */
 
 const SHEET_ID = '1CFMj0fmiuKtHm8DGS_7zLRkaMbCL33GfkjsK-R9s9gE';
 const LOG_SHEET = 'log infrastruktur';
@@ -41,7 +45,7 @@ function doPost(e) {
   }
 }
 
-function doGet(e) {
+function doGet() {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', message: 'Sanitasi.id log endpoint' }))
     .setMimeType(ContentService.MimeType.JSON);

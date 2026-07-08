@@ -53,7 +53,13 @@ export default function App() {
       {page === 'landing'    && <Landing onNavigate={navigate} />}
       {page === 'provinsi'   && <Provinsi onNavigate={navigate} />}
       {page === 'infra'      && <Infrastruktur onNavigate={navigate} />}
-      {page === 'kabkota'    && <KabKota onNavigate={navigate} initialProvinsi={search.provinsi ? decodeURIComponent(search.provinsi) : ''} />}
+      {page === 'kabkota'    && (
+        <KabKota
+          onNavigate={navigate}
+          initialProvinsi={search.provinsi ? decodeURIComponent(search.provinsi) : ''}
+          initialKode={search.kode ? decodeURIComponent(search.kode) : ''}
+        />
+      )}
     </div>
   );
 }

@@ -9,27 +9,38 @@ export function useSheetData(sheetName, normalizer) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tick, setTick] = useState(0);
   const normalizerRef = useRef(normalizer);
-  normalizerRef.current = normalizer;
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    normalizerRef.current = normalizer;
+  });
+
+  useEffect(() => {
+    let alive = true;
+    getSheetData(sheetName)
+      .then((raw) => {
+        if (!alive) return;
+        const n = normalizerRef.current;
+        setData(n ? n(raw) : raw);
+        setError(null);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setError(e.message);
+        setData([]);
+        setLoading(false);
+      });
+    return () => { alive = false; };
+  }, [sheetName, tick]);
+
+  const reload = useCallback(() => {
     setLoading(true);
-    setError(null);
-    try {
-      const raw = await getSheetData(sheetName);
-      const n = normalizerRef.current;
-      setData(n ? n(raw) : raw);
-    } catch (e) {
-      setError(e.message);
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [sheetName]);
+    setTick((t) => t + 1);
+  }, []);
 
-  useEffect(() => { load(); }, [load]);
-
-  return { data, loading, error, reload: load };
+  return { data, loading, error, reload };
 }
 
 const ipalNormalizer = (r) => normalizeInfra(r, 'IPAL');

@@ -1,20 +1,27 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useIPAL, useIPLT, useLog } from '../hooks/useSheetData';
+import { fmtNum, fmtPct, slugify } from '../lib/format';
+import { downloadCsv } from '../lib/exportCsv';
 import Breadcrumb from '../components/Breadcrumb';
-import LoadingSpinner from '../components/LoadingSpinner';
+import PageHeader from '../components/PageHeader';
+import SectionCard from '../components/SectionCard';
+import EmptyState from '../components/EmptyState';
+import { SkeletonPanel } from '../components/LoadingSpinner';
 import LogCatatanForm from '../components/LogCatatanForm';
 import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
+import ExportButtons from '../components/ExportButtons';
+import Icon from '../components/Icon';
 
-function statusStyle(isFunctioning, statusText) {
-  if (!statusText) return { color: 'var(--ink-3)', label: 'Tidak diketahui' };
-  const t = statusText.toLowerCase();
-  if (t.includes('tidak') || t.includes('non')) return { color: 'var(--bad)', label: 'Nonaktif / Bermasalah' };
-  return { color: 'var(--ok)', label: 'Beroperasi' };
+function statusOf(infra) {
+  if (!infra.statusText && infra.isFunctioning == null) return { color: 'var(--ink-3)', label: 'Tidak diketahui', ok: null };
+  return infra.isFunctioning
+    ? { color: 'var(--ok)', label: 'Beroperasi', ok: true }
+    : { color: 'var(--bad)', label: 'Tidak berfungsi', ok: false };
 }
 
 function utilPct(infra) {
-  if (!infra.kapasitas || !infra.kapasitasTerpakai) return null;
+  if (!infra.kapasitas || infra.kapasitasTerpakai == null) return null;
   return (infra.kapasitasTerpakai / infra.kapasitas) * 100;
 }
 
@@ -28,10 +35,17 @@ function logsFor(logs, infra) {
   });
 }
 
+function hasRealCoords(infra) {
+  return infra.lat != null && infra.lng != null && !isNaN(infra.lat) && !isNaN(infra.lng)
+    && Math.abs(infra.lat) <= 90 && Math.abs(infra.lng) <= 180
+    && !(infra.lat === 0 && infra.lng === 0);
+}
+
+// ── Detail side panel ──────────────────────────────────────────
 function InfraPanel({ infra, logs, onClose, reloadLogs }) {
   const [tab, setTab] = useState('detail');
   const related = logsFor(logs, infra);
-  const status = statusStyle(infra.isFunctioning, infra.statusText);
+  const status = statusOf(infra);
   const util = utilPct(infra);
 
   if (tab === 'addlog') {
@@ -49,27 +63,35 @@ function InfraPanel({ infra, logs, onClose, reloadLogs }) {
       <div style={{ padding: 16, borderBottom: '1px solid var(--line-2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, alignItems: 'start' }}>
           <span className="chip chip-accent">{infra.type}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-3)', lineHeight: 1 }}>×</button>
+          <button
+            onClick={onClose} aria-label="Tutup panel detail"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 4, lineHeight: 0 }}
+          >
+            <Icon name="x" size={17} />
+          </button>
         </div>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{infra.nama}</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono' }}>
+        <div style={{ fontWeight: 600, fontSize: 15.5, marginBottom: 2 }}>{infra.nama}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
           {infra.kabkot}{infra.provinsi ? ` · ${infra.provinsi}` : ''}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: status.color }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: status.color }}>{status.label}</span>
+          <span className="dot" style={{ background: status.color }} />
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: status.color }}>{status.label}</span>
         </div>
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--line-2)' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--line-2)' }} role="tablist">
         {[['detail', 'Detail'], ['catatan', `Catatan (${related.length})`]].map(([v, l]) => (
-          <button key={v} onClick={() => setTab(v)} style={{
-            padding: '10px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            background: 'transparent', border: 'none', fontFamily: 'inherit',
-            color: tab === v ? 'var(--ink)' : 'var(--ink-3)',
-            borderBottom: `2px solid ${tab === v ? 'var(--accent)' : 'transparent'}`,
-            marginBottom: -1,
-          }}>
+          <button
+            key={v} role="tab" aria-selected={tab === v} onClick={() => setTab(v)}
+            style={{
+              padding: '10px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+              background: 'transparent', border: 'none', fontFamily: 'inherit',
+              color: tab === v ? 'var(--ink)' : 'var(--ink-3)',
+              borderBottom: `2px solid ${tab === v ? 'var(--accent)' : 'transparent'}`,
+              marginBottom: -1,
+            }}
+          >
             {l}
           </button>
         ))}
@@ -79,24 +101,46 @@ function InfraPanel({ infra, logs, onClose, reloadLogs }) {
         <div style={{ padding: 16 }}>
           <div style={{ display: 'grid', gap: 8 }}>
             {[
-              ['Kode Kab/Kota', infra.kode || '—'],
+              ['Kode Kab/Kota', infra.kode || '—', true],
               ['Tahun Bangun', infra.tahunBangun || '—'],
-              ['Kapasitas Desain', infra.kapasitas != null ? `${infra.kapasitas} m³/hari` : '—'],
-              ['Kapasitas Terpakai', infra.kapasitasTerpakai != null ? `${infra.kapasitasTerpakai} m³/hari` : '—'],
-              ['Utilisasi', util != null ? `${util.toFixed(1)}%` : '—'],
-              [infra.type === 'IPAL' ? 'Sambungan Rumah (SR)' : 'KK Terlayani', infra.sr ?? '—'],
+              ['Kapasitas Desain', infra.kapasitas != null ? `${fmtNum(infra.kapasitas)} m³/hari` : '—'],
+              ['Kapasitas Terpakai', infra.kapasitasTerpakai != null ? `${fmtNum(infra.kapasitasTerpakai)} m³/hari` : '—'],
+              ['Utilisasi', util != null ? fmtPct(util, 1) : '—'],
+              [infra.type === 'IPAL' ? 'Sambungan Rumah (SR)' : 'KK Terlayani', infra.sr != null ? fmtNum(infra.sr) : '—'],
               ['Status Serah Terima', infra.statusSerah || '—'],
               ['Status Keberfungsian', infra.statusText || '—'],
-            ].map(([l, v]) => (
-              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: '1px dashed var(--line-2)', paddingBottom: 6 }}>
+            ].map(([l, v, mono]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5, borderBottom: '1px dashed var(--line-2)', paddingBottom: 6 }}>
                 <span style={{ color: 'var(--ink-3)' }}>{l}</span>
-                <span style={{ fontWeight: 600, fontFamily: 'JetBrains Mono', fontSize: 11, textAlign: 'right' }}>{v}</span>
+                <span className={mono ? 'mono' : 'num'} style={{ fontWeight: 600, fontSize: 12, textAlign: 'right' }}>{v}</span>
               </div>
             ))}
           </div>
+
+          {util != null && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--ink-3)', marginBottom: 4 }}>
+                <span>Utilisasi kapasitas</span>
+                <span className="num" style={{ fontWeight: 600, color: 'var(--ink)' }}>{fmtPct(util, 1)}</span>
+              </div>
+              <div style={{ height: 8, background: 'var(--line-2)', borderRadius: 4, overflow: 'hidden' }} role="img" aria-label={`Utilisasi ${fmtPct(util, 1)}`}>
+                <div style={{
+                  width: `${Math.min(util, 100)}%`, height: '100%', borderRadius: 4,
+                  background: util < 30 ? 'var(--warn)' : 'var(--accent)',
+                }} />
+              </div>
+              {util < 30 && (
+                <div style={{ fontSize: 11, color: 'var(--warn)', marginTop: 4 }}>
+                  Utilisasi rendah — kapasitas idle besar.
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ marginTop: 14 }}>
-            <button className="btn btn-accent" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setTab('addlog')}>
-              + Tambah Catatan
+            <button className="btn btn-accent" style={{ width: '100%' }} onClick={() => setTab('addlog')}>
+              <Icon name="plus" size={14} />
+              Tambah Catatan
             </button>
           </div>
         </div>
@@ -106,8 +150,9 @@ function InfraPanel({ infra, logs, onClose, reloadLogs }) {
         <div style={{ padding: 16 }}>
           <LogCatatanList logs={related} emptyText="Belum ada catatan untuk infrastruktur ini." />
           <div style={{ marginTop: 12 }}>
-            <button className="btn btn-accent" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setTab('addlog')}>
-              + Tambah Catatan Baru
+            <button className="btn btn-accent" style={{ width: '100%' }} onClick={() => setTab('addlog')}>
+              <Icon name="plus" size={14} />
+              Tambah Catatan Baru
             </button>
           </div>
         </div>
@@ -116,12 +161,7 @@ function InfraPanel({ infra, logs, onClose, reloadLogs }) {
   );
 }
 
-function hasRealCoords(infra) {
-  return infra.lat != null && infra.lng != null && !isNaN(infra.lat) && !isNaN(infra.lng)
-    && Math.abs(infra.lat) <= 90 && Math.abs(infra.lng) <= 180
-    && !(infra.lat === 0 && infra.lng === 0);
-}
-
+// ── Main page ─────────────────────────────────────────────────
 export default function Infrastruktur({ onNavigate }) {
   const { data: ipalData, loading: ipalLoading } = useIPAL();
   const { data: ipltData, loading: ipltLoading } = useIPLT();
@@ -132,7 +172,7 @@ export default function Infrastruktur({ onNavigate }) {
   const [filterKab, setFilterKab] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReady, setMapReady] = useState(() => !!window.L);
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
   const markersLayer = useRef(null);
@@ -162,9 +202,9 @@ export default function Infrastruktur({ onNavigate }) {
   const mappable = useMemo(() => filtered.filter(hasRealCoords), [filtered]);
   const unmappedCount = filtered.length - mappable.length;
 
-  // v1-style infrastructure statistics (per type)
+  // Per-type stats over the current filter.
   const stats = useMemo(() => {
-    const mk = () => ({ count: 0, func: 0, notFunc: 0, cap: 0, capFunc: 0, idle: 0, served: 0, idleServed: 0 });
+    const mk = () => ({ count: 0, func: 0, notFunc: 0, cap: 0, capFunc: 0, idle: 0, served: 0, idleServed: 0, lowUtil: 0 });
     const out = { IPAL: mk(), IPLT: mk() };
     filtered.forEach((d) => {
       const s = out[d.type]; if (!s) return;
@@ -175,14 +215,15 @@ export default function Infrastruktur({ onNavigate }) {
       s.idle += d.idle ?? 0;
       s.served += d.sr ?? 0;
       if (d.kapasitas && d.idle) s.idleServed += (d.sr ?? 0) * (d.idle / d.kapasitas);
+      const u = utilPct(d);
+      if (u != null && u < 30) s.lowUtil++;
     });
     return out;
   }, [filtered]);
 
-  const fmt = (n) => Math.round(n).toLocaleString('id-ID');
-
+  // ── Leaflet (CDN, lazy) ──
   useEffect(() => {
-    if (window.L) { setMapReady((r) => r || true); return; }
+    if (window.L) return; // already loaded (state initialized lazily)
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(link);
@@ -206,191 +247,281 @@ export default function Infrastruktur({ onNavigate }) {
     markersLayer.current.clearLayers();
     const pts = [];
     mappable.forEach((infra) => {
-      const color = infra.isFunctioning ? '#22c55e' : '#ef4444';
-      const marker = window.L.circleMarker([infra.lat, infra.lng], {
-        radius: infra.type === 'IPAL' ? 7 : 5,
-        fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.85,
-      }).addTo(markersLayer.current);
+      const color = infra.isFunctioning ? '#2E7D53' : '#C23B3B';
+      let marker;
+      if (infra.type === 'IPLT') {
+        // IPLT = square marker (shape distinguishes type; color = status)
+        marker = window.L.marker([infra.lat, infra.lng], {
+          icon: window.L.divIcon({
+            className: '',
+            html: `<span style="display:block;width:11px;height:11px;background:${color};border:1.5px solid white;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.35)"></span>`,
+            iconSize: [11, 11], iconAnchor: [5.5, 5.5],
+          }),
+        }).addTo(markersLayer.current);
+      } else {
+        // IPAL = circle marker
+        marker = window.L.circleMarker([infra.lat, infra.lng], {
+          radius: 6, fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
+        }).addTo(markersLayer.current);
+      }
       marker.bindTooltip(
-        `<b>${infra.nama}</b><br>${infra.kabkot}<br>${infra.statusText || (infra.isFunctioning ? 'Beroperasi' : 'Nonaktif')}`,
-        { direction: 'top' }
+        `<b>${infra.nama}</b><br>${infra.type} · ${infra.kabkot}<br>${infra.statusText || (infra.isFunctioning ? 'Beroperasi' : 'Tidak berfungsi')}`,
+        { direction: 'top' },
       );
       marker.on('click', () => setSelected(infra));
       pts.push([infra.lat, infra.lng]);
     });
     if (pts.length && (filterProv || filterKab)) {
-      try { leafletMap.current.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); } catch {}
+      try { leafletMap.current.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); } catch { /* noop */ }
     }
   }, [mapReady, mappable, filterProv, filterKab]);
+
+  // ── CSV export of the filtered list ──
+  const handleCsv = () => {
+    const scope = filterKab || filterProv;
+    const name = scope ? `sanitasi-infrastruktur-${slugify(scope)}` : 'sanitasi-infrastruktur-filtered';
+    downloadCsv(name, [
+      { key: 'type', label: 'Jenis' },
+      { key: 'nama', label: 'Nama Unit' },
+      { key: 'provinsi', label: 'Provinsi' },
+      { key: 'kabkot', label: 'Kabupaten/Kota' },
+      { key: 'kode', label: 'Kode Kab/Kota' },
+      { key: 'tahun', label: 'Tahun Pembangunan' },
+      { key: 'kapasitas', label: 'Kapasitas Desain (m³/hari)' },
+      { key: 'terpakai', label: 'Kapasitas Terpakai (m³/hari)' },
+      { key: 'sr', label: 'SR / KK Terlayani' },
+      { key: 'status', label: 'Status Keberfungsian' },
+      { key: 'catatan', label: 'Jumlah Catatan' },
+    ], filtered.map((i) => ({
+      type: i.type, nama: i.nama, provinsi: i.provinsi || '', kabkot: i.kabkot || '', kode: i.kode || '',
+      tahun: i.tahunBangun || '', kapasitas: i.kapasitas ?? '', terpakai: i.kapasitasTerpakai ?? '',
+      sr: i.sr ?? '', status: i.statusText || (i.isFunctioning ? 'Berfungsi' : 'Tidak berfungsi'),
+      catatan: logsFor(logs, i).length || '',
+    })));
+  };
+
+  const activeFilters = [filterProv, filterKab, filter !== 'Semua' && filter, statusFilter !== 'Semua' && statusFilter, search].filter(Boolean).length;
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <Breadcrumb
-        path={[{ label: 'Beranda', path: '/' }, 'Data Infrastruktur']}
+        path={[{ label: 'Beranda', path: '/' }, 'Infrastruktur']}
         onNavigate={onNavigate}
       />
 
-      <div className="page-pad" style={{ paddingTop: 16, paddingBottom: 10, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>Infrastruktur Sanitasi</div>
-            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-              {allInfra.length} titik · {ipalData.length} IPAL · {ipltData.length} IPLT · {logs.length} catatan
-            </div>
-          </div>
-          <input className="input" style={{ width: 240 }} placeholder="Cari nama / lokasi..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
+      <PageHeader
+        kicker="Aset Air Limbah Domestik"
+        title="Infrastruktur Sanitasi"
+        meta={`${allInfra.length} unit · ${ipalData.length} IPAL · ${ipltData.length} IPLT · ${logs.length} catatan lapangan`}
+        controls={<ExportButtons onCsv={handleCsv} csvLabel="Unduh CSV (terfilter)" />}
+      />
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filter bar */}
+      <div style={{ background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
+        <div className="page-wrap page-pad" style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: 260 }}>
+            <Icon name="search" size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }} />
+            <input
+              className="input" style={{ paddingLeft: 32 }}
+              placeholder="Cari nama / lokasi…"
+              aria-label="Cari infrastruktur"
+              value={search} onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <SearchableSelect
-            style={{ width: 180 }}
+            style={{ width: 170 }}
             value={filterProv}
             onChange={(v) => { setFilterProv(v); setFilterKab(''); }}
             options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiOptions.map((p) => ({ value: p, label: p }))]}
             placeholder="Semua Provinsi"
           />
           <SearchableSelect
-            style={{ width: 200 }}
+            style={{ width: 185 }}
             value={filterKab}
             onChange={setFilterKab}
             options={[{ value: '', label: 'Semua Kab/Kota' }, ...kabkotOptions.map((k) => ({ value: k, label: k }))]}
             placeholder="Semua Kab/Kota"
           />
-          <span style={{ width: 1, background: 'var(--line)', margin: '0 2px', alignSelf: 'stretch' }} />
-          {['Semua', 'IPAL', 'IPLT'].map((t) => (
-            <button key={t} className={`btn ${filter === t ? 'btn-secondary' : 'btn-ghost'}`}
-              style={{ padding: '5px 12px', fontSize: 11 }}
-              onClick={() => setFilter(t)}>{t}
+          <div className="seg" role="group" aria-label="Filter jenis">
+            {['Semua', 'IPAL', 'IPLT'].map((t) => (
+              <button key={t} type="button" aria-pressed={filter === t} onClick={() => setFilter(t)}>{t}</button>
+            ))}
+          </div>
+          <div className="seg" role="group" aria-label="Filter status">
+            {[['Semua', 'Semua Status'], ['Beroperasi', 'Beroperasi'], ['Nonaktif', 'Nonaktif']].map(([v, l]) => (
+              <button key={v} type="button" aria-pressed={statusFilter === v} onClick={() => setStatusFilter(v)}>{l}</button>
+            ))}
+          </div>
+          <span className="chip chip-accent" style={{ marginLeft: 'auto' }}>{filtered.length} unit ditampilkan</span>
+          {activeFilters > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setFilterProv(''); setFilterKab(''); setFilter('Semua'); setStatusFilter('Semua'); setSearch(''); }}
+            >
+              <Icon name="x" size={12} />
+              Hapus filter
             </button>
-          ))}
-          <span style={{ width: 1, background: 'var(--line)', margin: '0 2px', alignSelf: 'stretch' }} />
-          {[['Semua','Semua Status'], ['Beroperasi','● Beroperasi'], ['Nonaktif','● Nonaktif']].map(([v, l]) => (
-            <button key={v} className={`btn ${statusFilter === v ? 'btn-secondary' : 'btn-ghost'}`}
-              style={{ padding: '5px 12px', fontSize: 11 }}
-              onClick={() => setStatusFilter(v)}>{l}
-            </button>
-          ))}
-          <span className="chip chip-accent" style={{ marginLeft: 'auto' }}>{filtered.length} ditampilkan</span>
-          {(filterProv || filterKab) && (
-            <button className="btn btn-ghost" style={{ padding: '5px 10px', fontSize: 11 }} onClick={() => { setFilterProv(''); setFilterKab(''); }}>× Hapus filter</button>
           )}
         </div>
       </div>
 
       {loading ? (
-        <LoadingSpinner text="Memuat data infrastruktur..." />
+        <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40 }}>
+          <SkeletonPanel rows={3} height={150} />
+        </div>
       ) : (
-        <div className="page-pad" style={{ paddingBottom: 32, display: 'grid', gridTemplateColumns: selected ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)', gap: 16 }}>
-          <div>
-            {/* v1-style statistics: IPLT row + IPAL row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gridTemplateColumns: selected ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)', gap: 16 }} data-panel-open={!!selected}>
+          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+
+            {/* Per-type summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
               {[
-                { type: 'IPLT', accent: '#6366f1', unit: 'KK', unitLong: 'Kepala Keluarga', s: stats.IPLT },
-                { type: 'IPAL', accent: '#0d9488', unit: 'SR', unitLong: 'Sambungan Rumah', s: stats.IPAL },
-              ].map(({ type, accent, unit, unitLong, s }) => (
-                <div key={type} className="card" style={{ borderTop: `4px solid ${accent}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{type === 'IPAL' ? 'IPAL (Air Limbah Domestik)' : 'IPLT (Lumpur Tinja)'}</div>
-                    <span className="chip" style={{ background: accent, color: 'white', fontSize: 10 }}>{s.count} unit</span>
-                  </div>
+                { type: 'IPLT', unit: 'KK', unitLong: 'Kepala Keluarga', s: stats.IPLT },
+                { type: 'IPAL', unit: 'SR', unitLong: 'Sambungan Rumah', s: stats.IPAL },
+              ].map(({ type, unit, unitLong, s }) => (
+                <SectionCard
+                  key={type}
+                  title={type === 'IPAL' ? 'IPAL — Air Limbah Domestik' : 'IPLT — Lumpur Tinja'}
+                  actions={<span className="chip">{s.count} unit</span>}
+                >
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                    <div className="kpi" style={{ padding: 10 }}>
-                      <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Total Unit</div>
-                      <div style={{ fontSize: 22, fontWeight: 700 }}>{s.count}</div>
-                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', marginTop: 2 }}>
-                        <span style={{ color: 'var(--ok)' }}>{s.func} Berfungsi</span> · <span style={{ color: 'var(--bad)' }}>{s.notFunc} Tidak</span>
+                    <div className="kpi" style={{ padding: 11 }}>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Total Unit</div>
+                      <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>{s.count}</div>
+                      <div style={{ fontSize: 11, marginTop: 2 }}>
+                        <span style={{ color: 'var(--ok)' }}>{s.func} berfungsi</span>
+                        {' · '}
+                        <span style={{ color: s.notFunc ? 'var(--bad)' : 'var(--ink-3)' }}>{s.notFunc} tidak</span>
                       </div>
                     </div>
-                    <div className="kpi" style={{ padding: 10 }}>
-                      <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Total Kapasitas</div>
-                      <div style={{ fontSize: 22, fontWeight: 700 }}>{fmt(s.cap)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> m³</span></div>
-                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>Fungsi: {fmt(s.capFunc)}</div>
+                    <div className="kpi" style={{ padding: 11 }}>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Total Kapasitas</div>
+                      <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>
+                        {fmtNum(s.cap)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> m³</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>Berfungsi: {fmtNum(s.capFunc)} m³</div>
                     </div>
-                    <div className="kpi" style={{ padding: 10 }}>
-                      <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Idle Capacity</div>
-                      <div style={{ fontSize: 22, fontWeight: 700 }}>{fmt(s.idle)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> m³</span></div>
-                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>Potensi: {fmt(s.idleServed)} {unit}</div>
+                    <div className="kpi" style={{ padding: 11 }}>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Kapasitas Idle</div>
+                      <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>
+                        {fmtNum(s.idle)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> m³</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>Potensi: {fmtNum(s.idleServed)} {unit}</div>
                     </div>
-                    <div className="kpi" style={{ padding: 10 }}>
-                      <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Cakupan Layanan</div>
-                      <div style={{ fontSize: 22, fontWeight: 700 }}>{fmt(s.served)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> {unit}</span></div>
-                      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>{unitLong} Terlayani</div>
+                    <div className="kpi" style={{ padding: 11 }}>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Cakupan Layanan</div>
+                      <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>
+                        {fmtNum(s.served)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> {unit}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>{unitLong} terlayani</div>
                     </div>
                   </div>
-                </div>
+                  {s.lowUtil > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 11.5, color: 'var(--warn)' }}>
+                      <Icon name="alert" size={13} />
+                      {s.lowUtil} unit dengan utilisasi &lt; 30%
+                    </div>
+                  )}
+                </SectionCard>
               ))}
             </div>
 
-            <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Peta Infrastruktur</span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Map */}
+            <SectionCard
+              title="Peta Infrastruktur"
+              pad={false}
+              actions={(
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 11, color: 'var(--ink-2)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--ink-3)', display: 'inline-block' }} />IPAL
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 2, background: 'var(--ink-3)', display: 'inline-block' }} />IPLT
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--ok)' }}>
+                    <span className="dot" style={{ background: 'var(--ok)' }} />Beroperasi
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--bad)' }}>
+                    <span className="dot" style={{ background: 'var(--bad)' }} />Nonaktif
+                  </span>
                   {unmappedCount > 0 && (
                     <span className="chip chip-warn" style={{ fontSize: 10 }}>{unmappedCount} tanpa koordinat</span>
                   )}
-                  <span className="chip chip-ok" style={{ fontSize: 10 }}>● Beroperasi</span>
-                  <span className="chip chip-bad" style={{ fontSize: 10 }}>● Nonaktif</span>
                 </div>
-              </div>
-              <div ref={mapRef} style={{ height: 320, background: 'var(--line-2)' }} />
-            </div>
+              )}
+            >
+              <div ref={mapRef} style={{ height: 340, background: 'var(--line-2)' }} aria-label="Peta titik infrastruktur sanitasi" />
+            </SectionCard>
 
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <table className="data-table" style={{ minWidth: 640 }}>
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Jenis</th>
-                    <th>Lokasi</th>
-                    <th>Kapasitas</th>
-                    <th>Status</th>
-                    <th>Catatan</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.slice(0, 100).map((infra, i) => {
-                    const st = statusStyle(infra.isFunctioning, infra.statusText);
-                    const n = logsFor(logs, infra).length;
-                    return (
-                      <tr key={i}
-                        style={{ background: selected?.id === infra.id ? 'var(--accent-soft)' : '' }}
-                        onClick={() => setSelected(infra)}
-                      >
-                        <td style={{ fontFamily: 'JetBrains Mono', fontWeight: 600, fontSize: 12 }}>{infra.nama}</td>
-                        <td><span className="chip" style={{ fontSize: 10 }}>{infra.type}</span></td>
-                        <td style={{ fontSize: 12 }}>{infra.kabkot}</td>
-                        <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11 }}>{infra.kapasitas ?? '—'}</td>
-                        <td>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 4,
-                            fontSize: 11, color: st.color,
-                            fontFamily: 'JetBrains Mono', fontWeight: 600,
-                          }}>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.color }} />
-                            {st.label}
-                          </span>
-                        </td>
-                        <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--ink-3)' }}>
-                          {n > 0 ? `${n} catatan` : '—'}
+            {/* Table */}
+            <SectionCard title="Daftar Unit" pad={false}>
+              <div className="table-scroll">
+                <table className="data-table" style={{ minWidth: 700 }}>
+                  <thead>
+                    <tr>
+                      <th>Nama</th>
+                      <th>Jenis</th>
+                      <th>Lokasi</th>
+                      <th className="td-num">Kapasitas</th>
+                      <th className="td-num">Utilisasi</th>
+                      <th>Status</th>
+                      <th className="td-num">Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.slice(0, 100).map((infra, i) => {
+                      const st = statusOf(infra);
+                      const util = utilPct(infra);
+                      const n = logsFor(logs, infra).length;
+                      const isSel = selected && selected.nama === infra.nama && selected.kabkot === infra.kabkot;
+                      return (
+                        <tr
+                          key={`${infra.type}-${infra.nama}-${i}`}
+                          tabIndex={0}
+                          onClick={() => setSelected(infra)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(infra); } }}
+                          style={{ cursor: 'pointer', background: isSel ? 'var(--accent-soft)' : undefined }}
+                          aria-selected={isSel || undefined}
+                        >
+                          <td style={{ fontWeight: 500 }}>{infra.nama}</td>
+                          <td><span className="chip" style={{ fontSize: 10.5 }}>{infra.type}</span></td>
+                          <td style={{ color: 'var(--ink-2)' }}>{infra.kabkot}</td>
+                          <td className="td-num">{infra.kapasitas != null ? fmtNum(infra.kapasitas) : '—'}</td>
+                          <td className="td-num" style={util != null && util < 30 ? { color: 'var(--warn)', fontWeight: 600 } : undefined}>
+                            {util != null ? fmtPct(util, 0) : '—'}
+                          </td>
+                          <td>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: st.color }}>
+                              <span className="dot" style={{ background: st.color, width: 7, height: 7 }} />
+                              {st.label}
+                            </span>
+                          </td>
+                          <td className="td-num" style={{ color: 'var(--ink-3)' }}>{n > 0 ? n : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={7}>
+                          <EmptyState
+                            compact icon="search"
+                            title="Tidak ada unit yang cocok"
+                            text="Longgarkan filter atau ubah kata kunci pencarian."
+                          />
                         </td>
                       </tr>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 24, fontStyle: 'italic' }}>
-                      Tidak ada data yang sesuai filter.
-                    </td></tr>
-                  )}
-                  {filtered.length > 100 && (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 10, fontSize: 11, fontFamily: 'JetBrains Mono' }}>
-                      +{filtered.length - 100} data lainnya · gunakan filter untuk mempersempit
-                    </td></tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                    {filtered.length > 100 && (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 11.5 }}>
+                          +{filtered.length - 100} unit lainnya — persempit dengan filter, atau unduh CSV untuk daftar lengkap.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            </SectionCard>
           </div>
 
           {selected && (
@@ -405,6 +536,13 @@ export default function Infrastruktur({ onNavigate }) {
           )}
         </div>
       )}
+
+      {/* On mobile the detail panel stacks below; ensure grid collapses */}
+      <style>{`
+        @media (max-width: 900px) {
+          [data-panel-open="true"] { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
