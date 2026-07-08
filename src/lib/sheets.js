@@ -70,7 +70,7 @@ async function fetchSheet(sheetName) {
 
 function toNum(v) {
   if (v === null || v === undefined || v === '') return null;
-  const s = String(v).replace(/%/g, '').replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.\-]/g, '');
+  const s = String(v).replace(/%/g, '').replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '');
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
 }

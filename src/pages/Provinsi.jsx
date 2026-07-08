@@ -1,40 +1,60 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import Chart from 'chart.js/auto';
 import { useProvinsi, useKabkot, useIPAL, useIPLT } from '../hooks/useSheetData';
+import { useTheme, cssVar } from '../lib/theme';
+import { fmtPct, csvNum, slugify } from '../lib/format';
+import { downloadCsvSections } from '../lib/exportCsv';
+import { exportProvincePptx } from '../lib/exportPptx';
 import Breadcrumb from '../components/Breadcrumb';
+import PageHeader from '../components/PageHeader';
+import SectionCard from '../components/SectionCard';
+import MetricCard from '../components/MetricCard';
+import ChartContainer, { ChartLegend } from '../components/ChartContainer';
+import ProvinceKabkotMap from '../components/ProvinceKabkotMap';
+import { MAP_METRICS } from '../lib/mapMetrics';
+import ExportButtons from '../components/ExportButtons';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import SearchableSelect from '../components/SearchableSelect';
+import Icon from '../components/Icon';
 
-function fmtPct(v, digits = 2) { return v == null ? '—' : `${v.toFixed(digits)}%`; }
-function statusColor(v) {
-  if (v == null) return 'var(--ink-3)';
-  if (v >= 85) return 'var(--ok)';
-  if (v >= 70) return 'var(--warn)';
-  return 'var(--bad)';
+const YEARS = [2022, 2023, 2024, 2025];
+
+function baseChartOpts() {
+  const grid = cssVar('--viz-grid');
+  const tick = cssVar('--ink-3');
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: grid }, ticks: { font: { size: 10 }, color: tick } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: tick } },
+    },
+  };
 }
 
-// ── KPI card with Chart.js canvas ──
-function KpiCard({ title, accent, current, target, children, canvasRef }) {
+// KPI + trend chart card for one indicator.
+function IndicatorCard({ title, current, targetLabel, target, note, build, deps, ariaLabel, tone }) {
   return (
-    <div className="card" style={{ borderTop: `4px solid ${accent}`, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{title}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 8, borderBottom: '1px solid var(--line-2)', marginTop: 6 }}>
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Capaian 2025</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: accent, lineHeight: 1.1 }}>{current != null ? `${current.toFixed(2)}%` : '—'}</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Target 2029</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-2)' }}>{target != null ? `${Number(target).toFixed(1)}%` : '—'}</div>
+    <SectionCard title={title} pad>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10, borderBottom: '1px solid var(--line-2)', marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Capaian 2025</div>
+          <div className="num" style={{ fontSize: 27, fontWeight: 700, lineHeight: 1.1, color: tone }}>
+            {current != null ? fmtPct(current) : '—'}
           </div>
         </div>
-        {children}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>{targetLabel}</div>
+          <div className="num" style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>
+            {target != null ? fmtPct(target, 1) : '—'}
+          </div>
+          {note && <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 2 }}>{note}</div>}
+        </div>
       </div>
-      <div style={{ position: 'relative', flexGrow: 1, minHeight: 220 }}>
-        <canvas ref={canvasRef} />
-      </div>
-    </div>
+      <ChartContainer height={190} build={build} deps={deps} ariaLabel={ariaLabel} />
+    </SectionCard>
   );
 }
 
@@ -43,40 +63,57 @@ export default function Provinsi({ onNavigate }) {
   const { data: kabkotAll } = useKabkot();
   const { data: ipal } = useIPAL();
   const { data: iplt } = useIPLT();
+  const { theme } = useTheme();
 
   const [selected, setSelected] = useState(null);
+  const [mapMetric, setMapMetric] = useState('aman');
   const [sortBy, setSortBy] = useState('aman');
   const [sortDir, setSortDir] = useState('desc');
 
-  const sorted = useMemo(() => [...provinces].sort((a, b) => (b.layak2025 ?? 0) - (a.layak2025 ?? 0)), [provinces]);
+  const sorted = useMemo(() => [...provinces].sort((a, b) => a.provinsi.localeCompare(b.provinsi, 'id')), [provinces]);
   const selectedProv = selected ?? sorted[0];
+  const provKode = selectedProv ? String(selectedProv.kode).trim() : '';
 
+  // Kab/kota within province: BPS kode prefix first, name match as fallback.
   const kabsInProv = useMemo(() => {
     if (!selectedProv) return [];
+    const byKode = kabkotAll.filter((k) => provKode && String(k.kode).startsWith(provKode));
+    if (byKode.length) return byKode;
     const name = selectedProv.provinsi.toLowerCase();
-    return kabkotAll.filter((k) => k.provinsi?.toLowerCase().includes(name) || name.includes(k.provinsi?.toLowerCase() ?? '__'));
-  }, [kabkotAll, selectedProv]);
+    return kabkotAll.filter((k) => k.provinsi?.toLowerCase() === name);
+  }, [kabkotAll, selectedProv, provKode]);
 
-  const ipalHere = useMemo(() => ipal.filter((i) => i.provinsi && selectedProv?.provinsi && i.provinsi.toLowerCase().includes(selectedProv.provinsi.toLowerCase())), [ipal, selectedProv]);
-  const ipltHere = useMemo(() => iplt.filter((i) => i.provinsi && selectedProv?.provinsi && i.provinsi.toLowerCase().includes(selectedProv.provinsi.toLowerCase())), [iplt, selectedProv]);
-
-  const iTotal = ipltHere.length;
-  const iGood = ipltHere.filter((x) => x.isFunctioning).length;
-  const iBad = iTotal - iGood;
-  const aTotal = ipalHere.length;
-  const aGood = ipalHere.filter((x) => x.isFunctioning).length;
-  const aBad = aTotal - aGood;
+  const ipalHere = useMemo(
+    () => ipal.filter((i) => (i.kode && String(i.kode).startsWith(provKode)) || (i.provinsi && selectedProv && i.provinsi.toLowerCase() === selectedProv.provinsi.toLowerCase())),
+    [ipal, selectedProv, provKode],
+  );
+  const ipltHere = useMemo(
+    () => iplt.filter((i) => (i.kode && String(i.kode).startsWith(provKode)) || (i.provinsi && selectedProv && i.provinsi.toLowerCase() === selectedProv.provinsi.toLowerCase())),
+    [iplt, selectedProv, provKode],
+  );
 
   const kabsNoIPLT = useMemo(() => {
     if (!kabsInProv.length) return [];
-    const haveIPLT = new Set(ipltHere.map((i) => String(i.kode)));
-    return kabsInProv.filter((k) => !haveIPLT.has(String(k.kode)));
+    const have = new Set(ipltHere.map((i) => String(i.kode)));
+    return kabsInProv.filter((k) => !have.has(String(k.kode)));
   }, [kabsInProv, ipltHere]);
 
   const brokenUnits = useMemo(() => [
-    ...ipltHere.filter((x) => !x.isFunctioning).map((x) => ({ ...x, typ: 'IPLT' })),
-    ...ipalHere.filter((x) => !x.isFunctioning).map((x) => ({ ...x, typ: 'IPAL' })),
-  ], [ipltHere, ipalHere]);
+    ...ipalHere.filter((x) => !x.isFunctioning),
+    ...ipltHere.filter((x) => !x.isFunctioning),
+  ], [ipalHere, ipltHere]);
+
+  const babsHigh = useMemo(() => kabsInProv.filter((k) => (k.babs2025 ?? 0) > 10).sort((a, b) => (b.babs2025 ?? 0) - (a.babs2025 ?? 0)), [kabsInProv]);
+  const amanLow = useMemo(() => kabsInProv.filter((k) => k.aman2025 != null && k.aman2025 < 5).sort((a, b) => (a.aman2025 ?? 0) - (b.aman2025 ?? 0)), [kabsInProv]);
+
+  // Top/bottom for the active map metric.
+  const metricDef = MAP_METRICS[mapMetric];
+  const rankedByMetric = useMemo(() => {
+    const withVal = kabsInProv.filter((k) => k[metricDef.key] != null);
+    return [...withVal].sort((a, b) => metricDef.higherBetter
+      ? (b[metricDef.key] ?? 0) - (a[metricDef.key] ?? 0)
+      : (a[metricDef.key] ?? 0) - (b[metricDef.key] ?? 0));
+  }, [kabsInProv, metricDef]);
 
   const tableRows = useMemo(() => {
     const key = sortBy === 'kabkot' ? 'kabkot' : sortBy === 'layak' ? 'layak2025' : sortBy === 'babs' ? 'babs2025' : 'aman2025';
@@ -93,379 +130,428 @@ export default function Provinsi({ onNavigate }) {
     else { setSortBy(k); setSortDir(k === 'kabkot' ? 'asc' : 'desc'); }
   };
 
-  // ── Chart.js refs + effect ──
-  const canvasLayak = useRef(null);
-  const canvasAman = useRef(null);
-  const canvasBabs = useRef(null);
-  const canvasLadder = useRef(null);
-  const canvasGeo = useRef(null);
-  const chartsRef = useRef({});
-
-  useEffect(() => {
+  // ── Exports ──
+  const handleCsv = () => {
     if (!selectedProv) return;
-
-    // Destroy previous charts
-    Object.values(chartsRef.current).forEach((c) => c?.destroy?.());
-    chartsRef.current = {};
-
-    const years = [2022, 2023, 2024, 2025];
-    const hist = {
-      layak: years.map((y) => selectedProv.layak[`y${y}`]),
-      aman: years.map((y) => selectedProv.aman[`y${y}`]),
-      babs: years.map((y) => selectedProv.babs[`y${y}`]),
-    };
-
-    const commonOpts = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)', borderDash: [2, 4] }, ticks: { font: { size: 10 } } },
-        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    downloadCsvSections(`sanitasi-provinsi-${slugify(selectedProv.provinsi)}`, [
+      {
+        title: `Indikator Provinsi ${selectedProv.provinsi} (%)`,
+        columns: [
+          { key: 'indikator', label: 'Indikator' },
+          ...YEARS.map((y) => ({ key: `y${y}`, label: String(y) })),
+          { key: 't26', label: 'Target 2026' },
+          { key: 't29', label: 'Target 2029' },
+        ],
+        rows: [
+          { indikator: 'Akses Layak (termasuk Aman)', ...Object.fromEntries(YEARS.map((y) => [`y${y}`, csvNum(selectedProv.layak[`y${y}`])])), t26: '', t29: '' },
+          { indikator: 'Akses Aman', ...Object.fromEntries(YEARS.map((y) => [`y${y}`, csvNum(selectedProv.aman[`y${y}`])])), t26: csvNum(selectedProv.aman.target2026), t29: csvNum(selectedProv.aman.target2029) },
+          { indikator: 'BABS Terbuka', ...Object.fromEntries(YEARS.map((y) => [`y${y}`, csvNum(selectedProv.babs[`y${y}`])])), t26: csvNum(selectedProv.babs.target2026), t29: csvNum(selectedProv.babs.target2029) },
+        ],
       },
-    };
+      {
+        title: `Kab/Kota di ${selectedProv.provinsi} (%)`,
+        columns: [
+          { key: 'kode', label: 'Kode BPS' },
+          { key: 'kabkot', label: 'Kabupaten/Kota' },
+          { key: 'aman', label: 'Akses Aman 2025' },
+          { key: 'layak', label: 'Akses Layak 2025' },
+          { key: 'babs', label: 'BABS Terbuka 2025' },
+        ],
+        rows: kabsInProv.map((k) => ({
+          kode: k.kode, kabkot: k.kabkot,
+          aman: csvNum(k.aman2025), layak: csvNum(k.layak2025), babs: csvNum(k.babs2025),
+        })),
+      },
+    ]);
+  };
 
-    // Layak — bar
-    if (canvasLayak.current) {
-      chartsRef.current.layak = new Chart(canvasLayak.current, {
-        type: 'bar',
-        data: {
-          labels: years,
-          datasets: [{ label: 'Layak (Termasuk Aman)', data: hist.layak, backgroundColor: '#8b5cf6', borderRadius: 4 }],
-        },
-        options: commonOpts,
-      });
-    }
+  const handlePptx = () => exportProvincePptx(selectedProv, kabsInProv, {
+    ipal: ipalHere, iplt: ipltHere, kabsNoIPLT, broken: brokenUnits,
+  });
 
-    // Aman — bar with dashed target bars
-    if (canvasAman.current) {
-      const labels = [...years, 'Target 2026', 'Target 2029'];
-      const values = [...hist.aman, selectedProv.aman.target2026, selectedProv.aman.target2029];
-      chartsRef.current.aman = new Chart(canvasAman.current, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Aman',
-            data: values,
-            backgroundColor: values.map((_, i) => i < years.length ? '#14b8a6' : 'transparent'),
-            borderColor: '#14b8a6',
-            borderWidth: 2,
-            borderRadius: 4,
-            borderSkipped: false,
-          }],
-        },
-        options: commonOpts,
-      });
-    }
-
-    // BABS — line with dashed projection
-    if (canvasBabs.current) {
-      const labels = [...years, 'Target 2026', 'Target 2029'];
-      const values = [...hist.babs, selectedProv.babs.target2026, selectedProv.babs.target2029];
-      const historyCount = years.length;
-      chartsRef.current.babs = new Chart(canvasBabs.current, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'BABS',
-            data: values,
-            borderColor: '#ec4899',
-            backgroundColor: '#ec4899',
-            tension: 0.1,
-            pointRadius: 4,
-            segment: {
-              borderDash: (c) => c.p0DataIndex >= (historyCount - 1) ? [6, 6] : undefined,
-            },
-          }],
-        },
-        options: commonOpts,
-      });
-    }
-
-    // Ladder Sanitasi — horizontal stacked bar
-    if (canvasLadder.current) {
-      const aman = selectedProv.aman.y2025 ?? 0;
-      const layak = selectedProv.layak.y2025 ?? 0;
-      const babs = selectedProv.babs.y2025 ?? 0;
-      const layakNon = Math.max(0, layak - aman);
-      const gap = Math.max(0, 100 - layak - babs);
-      chartsRef.current.ladder = new Chart(canvasLadder.current, {
-        type: 'bar',
-        data: {
-          labels: ['2025'],
-          datasets: [
-            { label: 'Akses Aman', data: [aman], backgroundColor: '#0d9488' },
-            { label: 'Layak (Non-Aman)', data: [layakNon], backgroundColor: '#6366f1' },
-            { label: 'Dasar / Belum Layak', data: [gap], backgroundColor: '#cbd5e1' },
-            { label: 'BABS Terbuka', data: [babs], backgroundColor: '#f43f5e' },
-          ],
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(2)}%`,
-              },
-            },
-          },
-        },
-      });
-    }
-
-    // Geographic — per kab/kota stacked
-    if (canvasGeo.current && kabsInProv.length) {
-      const s = [...kabsInProv].sort((a, b) => (b.layak2025 ?? 0) - (a.layak2025 ?? 0));
-      chartsRef.current.geo = new Chart(canvasGeo.current, {
-        type: 'bar',
-        data: {
-          labels: s.map((k) => k.kabkot),
-          datasets: [
-            { label: 'Akses Aman', data: s.map((k) => k.aman2025 ?? 0), backgroundColor: '#0d9488', stack: 'main', barPercentage: 0.75 },
-            { label: 'Akses Layak (Non-Aman)', data: s.map((k) => Math.max(0, (k.layak2025 ?? 0) - (k.aman2025 ?? 0))), backgroundColor: '#8b5cf6', stack: 'main', barPercentage: 0.75 },
-            { label: 'BABS', data: s.map((k) => k.babs2025 ?? 0), backgroundColor: '#ec4899', stack: 'main', barPercentage: 0.75 },
-          ],
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          scales: {
-            x: { stacked: true, max: 120, title: { display: true, text: 'Persentase (%)', font: { size: 11 } }, ticks: { font: { size: 10 } } },
-            y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toFixed(2)}%`,
-                footer: (items) => {
-                  let aman = 0, layakNon = 0;
-                  items.forEach((t) => {
-                    if (t.dataset.label === 'Akses Aman') aman = Number(t.raw) || 0;
-                    if (t.dataset.label === 'Akses Layak (Non-Aman)') layakNon = Number(t.raw) || 0;
-                  });
-                  return 'Total Akses Layak: ' + (aman + layakNon).toFixed(2) + '%';
-                },
-              },
-            },
-          },
-        },
-      });
-    }
-
-    return () => {
-      Object.values(chartsRef.current).forEach((c) => c?.destroy?.());
-      chartsRef.current = {};
-    };
-  }, [selectedProv, kabsInProv]);
-
-  if (lP) return <LoadingSpinner text="Memuat data provinsi..." />;
+  if (lP) return <LoadingSpinner text="Memuat data provinsi…" />;
   if (eP) return <ErrorCard message={eP} onRetry={reload} />;
-  if (!selectedProv) return <div style={{ padding: 48, textAlign: 'center' }}>Tidak ada data provinsi.</div>;
+  if (!selectedProv) {
+    return <EmptyState icon="info" title="Tidak ada data provinsi" text='Periksa sheet "Akses Provinsi" pada Google Sheets sumber.' />;
+  }
+
+  const iGood = ipltHere.filter((x) => x.isFunctioning).length;
+  const aGood = ipalHere.filter((x) => x.isFunctioning).length;
+  const aman25 = selectedProv.aman.y2025;
+  const layak25 = selectedProv.layak.y2025;
+  const babs25 = selectedProv.babs.y2025;
+  const layakNon = Math.max(0, (layak25 ?? 0) - (aman25 ?? 0));
+  const sisa = Math.max(0, 100 - (layak25 ?? 0) - (babs25 ?? 0));
+
+  const hasAlerts = kabsNoIPLT.length || brokenUnits.length || babsHigh.length || amanLow.length;
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <Breadcrumb
-        path={[
-          { label: 'Beranda', path: '/' },
-          { label: 'Profil Provinsi', path: '/provinsi' },
-          { label: selectedProv.provinsi },
-        ]}
+        path={[{ label: 'Beranda', path: '/' }, { label: 'Provinsi', path: '/provinsi' }, { label: selectedProv.provinsi }]}
         onNavigate={onNavigate}
       />
 
-      {/* Header */}
-      <div className="page-pad" style={{ paddingTop: 20, paddingBottom: 20, background: 'var(--paper)', borderBottom: '1.5px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.08em', marginBottom: 4 }}>
-            DASHBOARD KINERJA SANITASI DAERAH
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>{selectedProv.provinsi}</div>
-          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Monitoring Akses Layak, Aman, BABS & Infrastruktur · Data 2025</div>
+      <PageHeader
+        kicker="Profil Sanitasi Provinsi"
+        title={selectedProv.provinsi}
+        meta={`${kabsInProv.length} kabupaten/kota · Akses layak, aman, BABS & infrastruktur · Data 2025`}
+        controls={(
+          <>
+            <SearchableSelect
+              style={{ width: 230 }}
+              value={selectedProv.provinsi}
+              onChange={(v) => setSelected(provinces.find((p) => p.provinsi === v) ?? null)}
+              options={sorted.map((p) => p.provinsi)}
+              placeholder="Pilih provinsi"
+            />
+            <ExportButtons onCsv={handleCsv} onPptx={handlePptx} />
+          </>
+        )}
+      />
+
+      <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
+
+        {/* Indicator trend cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          <IndicatorCard
+            title="Akses Layak (termasuk Aman)"
+            current={layak25} targetLabel="Target nasional" target={100}
+            tone="var(--viz-layak)"
+            ariaLabel={`Tren akses layak ${selectedProv.provinsi} 2022 sampai 2025`}
+            deps={[selectedProv.provinsi, theme]}
+            build={(canvas) => new Chart(canvas, {
+              type: 'bar',
+              data: {
+                labels: YEARS,
+                datasets: [{ data: YEARS.map((y) => selectedProv.layak[`y${y}`]), backgroundColor: cssVar('--viz-layak'), borderRadius: 3, maxBarThickness: 42 }],
+              },
+              options: baseChartOpts(),
+            })}
+          />
+          <IndicatorCard
+            title="Akses Aman"
+            current={aman25} targetLabel="Target 2029" target={selectedProv.aman.target2029}
+            note={`Target 2026: ${fmtPct(selectedProv.aman.target2026, 1)}`}
+            tone="var(--viz-aman)"
+            ariaLabel={`Tren akses aman ${selectedProv.provinsi} dengan target 2026 dan 2029`}
+            deps={[selectedProv.provinsi, theme]}
+            build={(canvas) => {
+              const labels = [...YEARS, 'T-2026', 'T-2029'];
+              const values = [...YEARS.map((y) => selectedProv.aman[`y${y}`]), selectedProv.aman.target2026, selectedProv.aman.target2029];
+              const c = cssVar('--viz-aman');
+              return new Chart(canvas, {
+                type: 'bar',
+                data: {
+                  labels,
+                  datasets: [{
+                    data: values,
+                    backgroundColor: values.map((_, i) => (i < YEARS.length ? c : 'transparent')),
+                    borderColor: c, borderWidth: 1.5, borderRadius: 3, borderSkipped: false, maxBarThickness: 42,
+                  }],
+                },
+                options: baseChartOpts(),
+              });
+            }}
+          />
+          <IndicatorCard
+            title="BABS di Tempat Terbuka"
+            current={babs25} targetLabel="Target 2029" target={selectedProv.babs.target2029}
+            note={`Target 2026: ${fmtPct(selectedProv.babs.target2026, 1)}`}
+            tone="var(--viz-babs)"
+            ariaLabel={`Tren BABS terbuka ${selectedProv.provinsi} dengan proyeksi target`}
+            deps={[selectedProv.provinsi, theme]}
+            build={(canvas) => {
+              const labels = [...YEARS, 'T-2026', 'T-2029'];
+              const values = [...YEARS.map((y) => selectedProv.babs[`y${y}`]), selectedProv.babs.target2026, selectedProv.babs.target2029];
+              const c = cssVar('--viz-babs');
+              return new Chart(canvas, {
+                type: 'line',
+                data: {
+                  labels,
+                  datasets: [{
+                    data: values, borderColor: c, backgroundColor: c,
+                    tension: 0.1, pointRadius: 3.5,
+                    segment: { borderDash: (ctx) => (ctx.p0DataIndex >= YEARS.length - 1 ? [6, 6] : undefined) },
+                  }],
+                },
+                options: baseChartOpts(),
+              });
+            }}
+          />
         </div>
-        <SearchableSelect
-          style={{ width: 240 }}
-          value={selectedProv.provinsi}
-          onChange={(v) => setSelected(provinces.find((p) => p.provinsi === v) ?? null)}
-          options={sorted.map((p) => p.provinsi)}
-          placeholder="Pilih provinsi"
-        />
-      </div>
 
-      {/* KPI Cards with Chart.js */}
-      <div className="page-pad" style={{ paddingTop: 16, paddingBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-        <KpiCard title="Akses Layak (Termasuk Aman)" accent="#8b5cf6" current={selectedProv.layak.y2025} target={100} canvasRef={canvasLayak} />
-        <KpiCard title="Akses Aman" accent="#14b8a6" current={selectedProv.aman.y2025} target={selectedProv.aman.target2029} canvasRef={canvasAman}>
-          <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', marginTop: 4 }}>
-            Target 2026: {fmtPct(selectedProv.aman.target2026)}
-          </div>
-        </KpiCard>
-        <KpiCard title="BABS Terbuka" accent="#ec4899" current={selectedProv.babs.y2025} target={selectedProv.babs.target2029} canvasRef={canvasBabs}>
-          <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', marginTop: 4 }}>
-            Target 2026: {fmtPct(selectedProv.babs.target2026)}
-          </div>
-        </KpiCard>
-      </div>
+        {/* Ladder sanitasi */}
+        <SectionCard
+          title="Komposisi Akses Sanitasi · 2025"
+          subtitle="Layak (non-aman) dihitung sebagai Layak − Aman; sisanya akses dasar/belum layak."
+        >
+          <ChartContainer
+            height={64}
+            ariaLabel={`Komposisi akses sanitasi ${selectedProv.provinsi} 2025`}
+            deps={[selectedProv.provinsi, theme]}
+            build={(canvas) => new Chart(canvas, {
+              type: 'bar',
+              data: {
+                labels: ['2025'],
+                datasets: [
+                  { label: 'Akses Aman', data: [aman25 ?? 0], backgroundColor: cssVar('--viz-aman') },
+                  { label: 'Layak (non-Aman)', data: [layakNon], backgroundColor: cssVar('--viz-layak') },
+                  { label: 'Dasar / Belum Layak', data: [sisa], backgroundColor: cssVar('--viz-muted') },
+                  { label: 'BABS Terbuka', data: [babs25 ?? 0], backgroundColor: cssVar('--viz-babs') },
+                ],
+              },
+              options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}` } },
+                },
+              },
+            })}
+          />
+          <ChartLegend
+            style={{ marginTop: 10 }}
+            items={[
+              { color: 'var(--viz-aman)', label: 'Akses Aman', value: fmtPct(aman25) },
+              { color: 'var(--viz-layak)', label: 'Layak (non-Aman)', value: fmtPct(layakNon) },
+              { color: 'var(--viz-muted)', label: 'Dasar / Belum Layak', value: fmtPct(sisa) },
+              { color: 'var(--viz-babs)', label: 'BABS Terbuka', value: fmtPct(babs25) },
+            ]}
+          />
+        </SectionCard>
 
-      {/* Ladder Sanitasi */}
-      <div className="page-pad" style={{ paddingBottom: 16 }}>
-        <div className="card" style={{ borderTop: '4px solid #3b82f6' }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Ladder Sanitasi · 2025</div>
-          <div style={{ height: 80, position: 'relative' }}>
-            <canvas ref={canvasLadder} />
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 10 }}>
-            {[
-              ['#0d9488', 'Akses Aman', selectedProv.aman.y2025],
-              ['#6366f1', 'Layak (Non-Aman)', Math.max(0, (selectedProv.layak.y2025 ?? 0) - (selectedProv.aman.y2025 ?? 0))],
-              ['#cbd5e1', 'Dasar / Belum Layak', Math.max(0, 100 - (selectedProv.layak.y2025 ?? 0) - (selectedProv.babs.y2025 ?? 0))],
-              ['#f43f5e', 'BABS Terbuka', selectedProv.babs.y2025],
-            ].map(([c, l, v]) => (
-              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
-                <span style={{ width: 10, height: 10, background: c, borderRadius: 2 }} />
-                <span>{l}</span>
-                <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }}>{Number(v ?? 0).toFixed(2)}%</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', marginTop: 8 }}>
-            *Kalkulasi: Layak (excl. Aman) = Layak − Aman. Sisa = Akses Dasar/Belum Layak.
-          </div>
-        </div>
-      </div>
-
-      {/* Infrastructure Summary */}
-      <div className="page-pad" style={{ paddingBottom: 16 }}>
-        <div className="card" style={{ borderTop: '4px solid #f59e0b' }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Data Infrastruktur IPAL & IPLT</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
-            <div className="kpi" style={{ borderLeft: '3px solid #f59e0b' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Total IPLT</div>
-              <div style={{ fontSize: 26, fontWeight: 700 }}>{iTotal}</div>
-              <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>
-                <span style={{ color: 'var(--ok)' }}>Berfungsi: {iGood}</span> · <span style={{ color: 'var(--bad)' }}>Rusak: {iBad}</span>
-              </div>
-            </div>
-            <div className="kpi" style={{ borderLeft: '3px solid #3b82f6' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Total IPAL</div>
-              <div style={{ fontSize: 26, fontWeight: 700 }}>{aTotal}</div>
-              <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>
-                <span style={{ color: 'var(--ok)' }}>Berfungsi: {aGood}</span> · <span style={{ color: 'var(--bad)' }}>Rusak: {aBad}</span>
-              </div>
-            </div>
-            <div className="kpi" style={{ borderLeft: '3px solid var(--bad)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Kab Belum Ada IPLT</div>
-              <div style={{ fontSize: 26, fontWeight: 700 }}>{kabsNoIPLT.length}</div>
-              <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>dari {kabsInProv.length} kab/kota</div>
-            </div>
-            <div className="kpi" style={{ borderLeft: '3px solid var(--ink-3)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', textTransform: 'uppercase' }}>Total Unit Rusak</div>
-              <div style={{ fontSize: 26, fontWeight: 700 }}>{iBad + aBad}</div>
-              <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', marginTop: 2 }}>IPLT + IPAL gabungan</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Alerts */}
-      {(kabsNoIPLT.length > 0 || brokenUnits.length > 0) && (
-        <div className="page-pad" style={{ paddingBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-          {kabsNoIPLT.length > 0 && (
-            <div className="card" style={{ background: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--bad)' }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--bad)', marginBottom: 8 }}>
-                ⚠ Kab/Kota Belum Memiliki IPLT ({kabsNoIPLT.length})
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 140, overflowY: 'auto' }} className="no-scrollbar">
-                {kabsNoIPLT.map((k) => (
-                  <span key={k.kode || k.kabkot} className="chip chip-bad" style={{ fontSize: 10 }}>{k.kabkot}</span>
-                ))}
-              </div>
+        {/* Choropleth map */}
+        <SectionCard
+          title="Peta Sebaran Kab/Kota"
+          subtitle="Warna wilayah mengikuti indikator terpilih · klik wilayah untuk membuka profil"
+          actions={(
+            <div className="seg" role="group" aria-label="Pilih indikator peta">
+              {Object.entries(MAP_METRICS).map(([k, def]) => (
+                <button key={k} type="button" aria-pressed={mapMetric === k} onClick={() => setMapMetric(k)}>
+                  {def.label}
+                </button>
+              ))}
             </div>
           )}
-          {brokenUnits.length > 0 && (
-            <div className="card" style={{ background: 'rgba(245, 158, 11, 0.05)', borderLeft: '3px solid var(--warn)' }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--warn)', marginBottom: 8 }}>
-                ⚠ Daftar Unit Tidak Berfungsi ({brokenUnits.length})
-              </div>
-              <div style={{ display: 'grid', gap: 4, maxHeight: 180, overflowY: 'auto' }} className="no-scrollbar">
-                {brokenUnits.map((u, i) => (
-                  <div key={i} style={{ fontSize: 11, display: 'flex', gap: 8, alignItems: 'center', padding: '4px 6px', background: 'var(--paper)', borderRadius: 3 }}>
-                    <span className="chip chip-accent" style={{ fontSize: 9 }}>{u.typ}</span>
-                    <span style={{ fontWeight: 600 }}>{u.nama}</span>
-                    <span style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono', fontSize: 10, marginLeft: 'auto' }}>
-                      {u.kabkot} · {u.tahunBangun || '—'}
-                    </span>
+        >
+          <ProvinceKabkotMap
+            provKode={provKode}
+            kabs={kabsInProv}
+            metric={mapMetric}
+            onOpenProfile={(kab) => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(kab.kode)}`)}
+          />
+
+          {/* Top & bottom for the active metric */}
+          {rankedByMetric.length > 1 && (
+            <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line-2)' }}>
+              {[
+                { label: `${metricDef.label} terbaik`, rows: rankedByMetric.slice(0, 5), icon: 'arrowUp', color: 'var(--ok)' },
+                { label: `${metricDef.label} perlu perhatian`, rows: rankedByMetric.slice(-5).reverse(), icon: 'arrowDown', color: 'var(--bad)' },
+              ].map(({ label, rows, icon, color }) => (
+                <div key={label}>
+                  <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Icon name={icon} size={12} style={{ color }} />
+                    {label}
                   </div>
-                ))}
-              </div>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    {rows.map((k) => (
+                      <button
+                        key={k.kode || k.kabkot}
+                        type="button"
+                        onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)}
+                        style={{
+                          all: 'unset', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
+                          gap: 10, fontSize: 12.5, padding: '5px 8px', borderRadius: 5,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.kabkot}</span>
+                        <span className="num" style={{ fontWeight: 600 }}>{fmtPct(k[metricDef.key], 1)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      )}
+        </SectionCard>
 
-      {/* Geo chart */}
-      <div className="page-pad" style={{ paddingBottom: 16 }}>
-        <div className="card" style={{ borderTop: '4px solid #6366f1' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Grafik Sebaran Capaian Kab/Kota · 2025</div>
-            <div style={{ display: 'flex', gap: 12, fontSize: 11, fontFamily: 'JetBrains Mono' }}>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#0d9488', marginRight: 4, borderRadius: 2 }} />Aman</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#8b5cf6', marginRight: 4, borderRadius: 2 }} />Layak (non-Aman)</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#ec4899', marginRight: 4, borderRadius: 2 }} />BABS</span>
+        {/* Infrastructure summary */}
+        <SectionCard title="Infrastruktur IPAL & IPLT" subtitle={`Aset air limbah domestik tercatat di ${selectedProv.provinsi}`}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+            <MetricCard label="Unit IPAL" value={ipalHere.length} unit="" sub={`${aGood} berfungsi · ${ipalHere.length - aGood} tidak`} />
+            <MetricCard label="Unit IPLT" value={ipltHere.length} unit="" sub={`${iGood} berfungsi · ${ipltHere.length - iGood} tidak`} />
+            <MetricCard label="Kab/Kota tanpa IPLT" value={kabsNoIPLT.length} unit="" sub={`dari ${kabsInProv.length} kab/kota`} tone={kabsNoIPLT.length ? 'warn' : 'ok'} />
+            <MetricCard label="Unit tidak berfungsi" value={brokenUnits.length} unit="" sub="IPAL + IPLT" tone={brokenUnits.length ? 'bad' : 'ok'} />
+          </div>
+        </SectionCard>
+
+        {/* Structured alerts */}
+        <SectionCard title="Isu Prioritas" subtitle="Hal yang memerlukan tindak lanjut perencanaan">
+          {!hasAlerts && (
+            <EmptyState compact icon="check" title="Tidak ada isu prioritas terdeteksi" text="Seluruh indikator provinsi ini berada dalam ambang wajar." />
+          )}
+          {hasAlerts && (
+            <div style={{ display: 'grid', gap: 14 }}>
+              {kabsNoIPLT.length > 0 && (
+                <AlertGroup
+                  tone="bad" title={`${kabsNoIPLT.length} kab/kota belum memiliki IPLT`}
+                  items={kabsNoIPLT.map((k) => ({ id: k.kode || k.kabkot, label: k.kabkot }))}
+                />
+              )}
+              {brokenUnits.length > 0 && (
+                <AlertGroup
+                  tone="warn" title={`${brokenUnits.length} unit IPAL/IPLT tidak berfungsi`}
+                  items={brokenUnits.map((u) => ({ id: u.id, label: `${u.type} · ${u.nama}${u.kabkot ? ` (${u.kabkot})` : ''}` }))}
+                />
+              )}
+              {babsHigh.length > 0 && (
+                <AlertGroup
+                  tone="bad" title={`${babsHigh.length} kab/kota dengan BABS terbuka > 10%`}
+                  items={babsHigh.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.babs2025, 1)}` }))}
+                />
+              )}
+              {amanLow.length > 0 && (
+                <AlertGroup
+                  tone="warn" title={`${amanLow.length} kab/kota dengan akses aman < 5%`}
+                  items={amanLow.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.aman2025, 1)}` }))}
+                />
+              )}
             </div>
-          </div>
-          <div style={{ height: Math.max(280, kabsInProv.length * 22), position: 'relative' }}>
-            <canvas ref={canvasGeo} />
-          </div>
-        </div>
-      </div>
+          )}
+        </SectionCard>
 
-      {/* Tabular */}
-      <div className="page-pad" style={{ paddingBottom: 32 }}>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 15 }}>Data Tabular Kab/Kota · {selectedProv.provinsi}</span>
-            <button className="btn btn-accent" style={{ fontSize: 11 }} onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}`)}>
-              Lihat profil kab/kota →
+        {/* Stacked distribution chart */}
+        <SectionCard title="Capaian per Kab/Kota · 2025" subtitle="Urut dari akses layak tertinggi">
+          <ChartLegend
+            style={{ marginBottom: 10 }}
+            items={[
+              { color: 'var(--viz-aman)', label: 'Akses Aman' },
+              { color: 'var(--viz-layak)', label: 'Layak (non-Aman)' },
+              { color: 'var(--viz-babs)', label: 'BABS Terbuka' },
+            ]}
+          />
+          <ChartContainer
+            height={Math.max(280, kabsInProv.length * 22)}
+            ariaLabel={`Capaian sanitasi per kab/kota di ${selectedProv.provinsi}`}
+            deps={[selectedProv.provinsi, kabsInProv.length, theme]}
+            build={(canvas) => {
+              const s = [...kabsInProv].sort((a, b) => (b.layak2025 ?? 0) - (a.layak2025 ?? 0));
+              const tick = cssVar('--ink-3');
+              return new Chart(canvas, {
+                type: 'bar',
+                data: {
+                  labels: s.map((k) => k.kabkot),
+                  datasets: [
+                    { label: 'Akses Aman', data: s.map((k) => k.aman2025 ?? 0), backgroundColor: cssVar('--viz-aman'), stack: 'm', barPercentage: 0.72 },
+                    { label: 'Layak (non-Aman)', data: s.map((k) => Math.max(0, (k.layak2025 ?? 0) - (k.aman2025 ?? 0))), backgroundColor: cssVar('--viz-layak'), stack: 'm', barPercentage: 0.72 },
+                    { label: 'BABS Terbuka', data: s.map((k) => k.babs2025 ?? 0), backgroundColor: cssVar('--viz-babs'), stack: 'm', barPercentage: 0.72 },
+                  ],
+                },
+                options: {
+                  indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                  interaction: { mode: 'index', intersect: false },
+                  scales: {
+                    x: { stacked: true, max: 120, grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 10 }, color: tick } },
+                    y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 }, color: tick } },
+                  },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}`,
+                        footer: (items) => {
+                          let aman = 0, non = 0;
+                          items.forEach((t) => {
+                            if (t.dataset.label === 'Akses Aman') aman = Number(t.raw) || 0;
+                            if (t.dataset.label === 'Layak (non-Aman)') non = Number(t.raw) || 0;
+                          });
+                          return `Total Akses Layak: ${fmtPct(aman + non)}`;
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+            }}
+          />
+        </SectionCard>
+
+        {/* Table */}
+        <SectionCard
+          title={`Data Kab/Kota · ${selectedProv.provinsi}`}
+          pad={false}
+          actions={(
+            <button className="btn btn-accent btn-sm" onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}`)}>
+              Profil kab/kota
+              <Icon name="arrowRight" size={13} />
             </button>
-          </div>
-          <div style={{ maxHeight: 500, overflow: 'auto' }} className="no-scrollbar">
-            <table className="data-table" style={{ minWidth: 480 }}>
+          )}
+        >
+          <div className="table-scroll" style={{ maxHeight: 480 }}>
+            <table className="data-table" style={{ minWidth: 520 }}>
               <thead>
                 <tr>
-                  {[['kabkot','Kabupaten/Kota'],['aman','Akses Aman'],['layak','Akses Layak'],['babs','BABS Terbuka']].map(([k, l]) => (
-                    <th key={k} onClick={() => onSort(k)} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                      {l} {sortBy === k ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  {[['kabkot', 'Kabupaten/Kota', false], ['aman', 'Akses Aman', true], ['layak', 'Akses Layak', true], ['babs', 'BABS Terbuka', true]].map(([k, l, num]) => (
+                    <th
+                      key={k}
+                      className={num ? 'td-num' : undefined}
+                      aria-sort={sortBy === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+                    >
+                      <button
+                        onClick={() => onSort(k)}
+                        style={{
+                          all: 'unset', cursor: 'pointer', font: 'inherit', color: 'inherit',
+                          textTransform: 'inherit', letterSpacing: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        }}
+                      >
+                        {l}
+                        {sortBy === k && <Icon name={sortDir === 'asc' ? 'arrowUp' : 'arrowDown'} size={11} />}
+                      </button>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {tableRows.map((k) => {
-                  const babsHi = (k.babs2025 ?? 0) > 5;
+                  const babsHi = (k.babs2025 ?? 0) > 10;
                   return (
-                    <tr key={k.kode || k.kabkot}>
-                      <td style={{ fontWeight: 600, fontSize: 12 }}>{k.kabkot}</td>
-                      <td style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: statusColor(k.aman2025) }}>{fmtPct(k.aman2025)}</td>
-                      <td style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}>{fmtPct(k.layak2025)}</td>
-                      <td style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: babsHi ? 'var(--bad)' : 'var(--ink-2)', fontWeight: babsHi ? 700 : 400 }}>
-                        {fmtPct(k.babs2025)}
-                      </td>
+                    <tr key={k.kode || k.kabkot} onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)} style={{ cursor: 'pointer' }}>
+                      <td style={{ fontWeight: 500 }}>{k.kabkot}</td>
+                      <td className="td-num">{fmtPct(k.aman2025)}</td>
+                      <td className="td-num">{fmtPct(k.layak2025)}</td>
+                      <td className="td-num" style={babsHi ? { color: 'var(--bad)', fontWeight: 600 } : undefined}>{fmtPct(k.babs2025)}</td>
                     </tr>
                   );
                 })}
+                {tableRows.length === 0 && (
+                  <tr><td colSpan={4}><EmptyState compact icon="info" title="Tidak ada kab/kota" text='Data sheet "Akses Kabkot" tidak memiliki baris untuk provinsi ini.' /></td></tr>
+                )}
               </tbody>
             </table>
           </div>
-        </div>
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
+
+function AlertGroup({ tone, title, items }) {
+  const chipClass = tone === 'bad' ? 'chip-bad' : 'chip-warn';
+  const color = tone === 'bad' ? 'var(--bad)' : 'var(--warn)';
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+        <Icon name="alert" size={14} style={{ color }} />
+        {title}
+      </div>
+      <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflowY: 'auto' }}>
+        {items.map((it) => (
+          <span key={it.id} className={`chip ${chipClass}`} style={{ fontSize: 10.5 }}>{it.label}</span>
+        ))}
       </div>
     </div>
   );

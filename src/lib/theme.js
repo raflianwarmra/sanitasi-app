@@ -26,10 +26,16 @@ export function useTheme() {
   const toggle = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('theme', next); } catch {}
+    try { localStorage.setItem('theme', next); } catch { /* localStorage unavailable */ }
     setHasOverride(true);
     setTheme(next);
   };
 
   return { theme, toggle };
+}
+
+// Resolve a CSS custom property to its computed value — lets Chart.js/Leaflet
+// pick up the active theme's colors (canvas can't read var() directly).
+export function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
