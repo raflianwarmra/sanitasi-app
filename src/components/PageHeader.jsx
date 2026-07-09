@@ -1,16 +1,27 @@
 // Page identity band: kicker, title, meta, and right-aligned controls.
-// Optional island theming: a subtle accent wash + abstract motif corner —
-// chrome only, data colors elsewhere are never affected.
+// Island theming: a strong accent wash + motif corner in the chrome only —
+// data colors elsewhere (charts/map/tables) are never affected.
+//
+// IMPORTANT: the decorative layer (wash + motif) is clipped inside its OWN
+// absolutely-positioned wrapper (inset:0), never on the header itself.
+// Clipping the header would also clip absolutely-positioned children such
+// as the province dropdown, cutting its option list off mid-render.
 
 import IslandMotif from './IslandMotif';
 
 export default function PageHeader({ kicker, title, titleExtra, meta, controls, island }) {
-  const wash = island
-    ? `color-mix(in oklch, ${island.accent} 6%, var(--paper))`
-    : 'var(--paper)';
   return (
-    <div style={{ background: wash, borderBottom: '1px solid var(--line)', position: 'relative', overflow: 'hidden' }}>
-      {island && <IslandMotif island={island} />}
+    <div style={{ position: 'relative', background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
+      {island && (
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(90deg, color-mix(in oklch, ${island.accent} 22%, var(--paper)), color-mix(in oklch, ${island.accent} 5%, var(--paper)) 78%)`,
+            transition: 'background 0.25s ease-out',
+          }} />
+          <IslandMotif island={island} />
+        </div>
+      )}
       <div className="page-wrap page-pad" style={{
         paddingTop: 20, paddingBottom: 20,
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
@@ -18,7 +29,11 @@ export default function PageHeader({ kicker, title, titleExtra, meta, controls, 
       }}>
         <div style={{ minWidth: 0, flex: '1 1 280px' }}>
           {kicker && (
-            <div className="section-label" style={{ marginBottom: 6, color: island ? island.accent : undefined }}>
+            <div className="section-label" style={{
+              marginBottom: 6,
+              color: island ? island.accent : undefined,
+              fontWeight: island ? 700 : undefined,
+            }}>
               {kicker}
             </div>
           )}

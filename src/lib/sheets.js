@@ -13,6 +13,8 @@ export const SHEET_GIDS = {
   TEAM:        'Team Member',
   NASIONAL:    'Nasional',
   LADDER_NAS:  'Ladder Nasional',
+  LADDER_PROV: 'Ladder Provinsi',
+  LADDER_KAB:  'Ladder Kabupaten/Kota',
 };
 
 function csvUrl(sheet) {
@@ -250,6 +252,46 @@ export function normalizeLadderNasional(raw) {
   return raw
     .map((r) => ({ label: pick(r, 'ladder'), values: yearSeries(r) }))
     .filter((x) => x.label);
+}
+
+// Ladder Provinsi / Ladder Kabupaten\u002FKota sheets: one row per area,
+// columns = ladder rungs (Aman Setempat/Terpusat, Layak Sendiri/Bersama,
+// Belum Layak, BABS). Only rungs present in the sheet are emitted.
+function extractLadderRungs(row) {
+  const keys = Object.keys(row);
+  const get = (m) => {
+    const k = keys.find((k2) => k2.includes(m));
+    return k ? toNum(row[k]) : null;
+  };
+  const hasSplit = keys.some((k) => k.includes('aman setempat') || k.includes('aman terpusat'));
+  const out = [];
+  const push = (label, v) => { if (v != null) out.push({ label, value: v }); };
+  push('Akses Aman Terpusat', get('aman terpusat'));
+  push('Akses Aman Setempat', get('aman setempat'));
+  if (!hasSplit) push('Akses Aman', get('akses aman'));
+  push('Akses Layak Sendiri', get('layak sendiri'));
+  push('Akses Layak Bersama', get('layak bersama'));
+  push('Akses Belum Layak', get('belum layak'));
+  push('BABS Tertutup', get('babs tertutup'));
+  push('BABS di Tempat Terbuka', get('babs di tempat'));
+  return out;
+}
+
+export function normalizeLadderProvinsi(raw) {
+  return raw.map((r) => ({
+    kode: String(pick(r, 'kode')).trim(),
+    provinsi: pick(r, 'provinsi'),
+    rungs: extractLadderRungs(r),
+  })).filter((x) => x.kode);
+}
+
+export function normalizeLadderKabkot(raw) {
+  return raw.map((r) => ({
+    kode: String(pick(r, 'kode')).trim(),
+    provinsi: pick(r, 'provinsi'),
+    kabkot: pick(r, 'kabupaten kota', 'kabupaten/kota', 'kabkot'),
+    rungs: extractLadderRungs(r),
+  })).filter((x) => x.kode);
 }
 
 // ── Main fetcher ─────────────────────────────────────────────

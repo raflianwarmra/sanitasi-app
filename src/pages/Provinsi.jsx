@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Chart from 'chart.js/auto';
-import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional } from '../hooks/useSheetData';
+import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional, useLadderProvinsi } from '../hooks/useSheetData';
 import { useTheme, cssVar } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
@@ -12,10 +12,10 @@ import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
 import MetricCard from '../components/MetricCard';
 import IndicatorCard from '../components/IndicatorCard';
-import ChartContainer, { ChartLegend } from '../components/ChartContainer';
 import ProvinceKabkotMap from '../components/ProvinceKabkotMap';
 import { MAP_METRICS } from '../lib/mapMetrics';
 import NationalView from '../components/NationalView';
+import LadderChart from '../components/LadderChart';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
@@ -46,6 +46,7 @@ export default function Provinsi({ onNavigate }) {
   const { data: iplt } = useIPLT();
   const { data: nasional } = useNasional();
   const { data: ladder } = useLadderNasional();
+  const { data: ladderProv } = useLadderProvinsi();
   const { theme } = useTheme();
 
   // National is the default view; provinces sorted by BPS kode.
@@ -64,6 +65,19 @@ export default function Provinsi({ onNavigate }) {
     : (sorted.find((p) => String(p.kode).trim() === selectedKode) ?? sorted[0] ?? null);
   const provKode = selectedProv ? String(selectedProv.kode).trim() : '';
   const island = selectedProv ? islandOf(provKode) : null;
+
+  // Island chrome tint: drives the TopNav strip + page background via CSS
+  // vars on <html> (data colors are untouched).
+  useEffect(() => {
+    if (island) document.documentElement.setAttribute('data-island', island.id);
+    else document.documentElement.removeAttribute('data-island');
+    return () => document.documentElement.removeAttribute('data-island');
+  }, [island]);
+
+  const provLadder = useMemo(
+    () => ladderProv.find((r) => r.kode === provKode) ?? null,
+    [ladderProv, provKode],
+  );
 
   const selectOptions = useMemo(() => [
     { value: NATIONAL_KEY, label: 'Indonesia — Nasional' },
@@ -237,8 +251,6 @@ export default function Provinsi({ onNavigate }) {
   const aman25 = selectedProv?.aman.y2025;
   const layak25 = selectedProv?.layak.y2025;
   const babs25 = selectedProv?.babs.y2025;
-  const layakNon = Math.max(0, (layak25 ?? 0) - (aman25 ?? 0));
-  const sisa = Math.max(0, 100 - (layak25 ?? 0) - (babs25 ?? 0));
   const iGood = ipltHere.filter((x) => x.isFunctioning).length;
   const aGood = ipalHere.filter((x) => x.isFunctioning).length;
   const hasAlerts = kabsNoIPLT.length || brokenUnits.length || babsHigh.length || amanLow.length;
@@ -360,45 +372,12 @@ export default function Provinsi({ onNavigate }) {
               />
             </div>
 
-            {/* Ladder sanitasi */}
+            {/* Tangga sanitasi (real ladder data) */}
             <SectionCard
-              title="Komposisi Akses Sanitasi · 2025"
-              subtitle="Layak (non-aman) dihitung sebagai Layak − Aman; sisanya akses dasar/belum layak."
+              title="Tangga Sanitasi · 2025"
+              subtitle='Sumber: sheet "Ladder Provinsi" — komposisi jenjang akses'
             >
-              <ChartContainer
-                height={64}
-                ariaLabel={`Komposisi akses sanitasi ${selectedProv.provinsi} 2025`}
-                deps={[selectedProv.provinsi, theme]}
-                build={(canvas) => new Chart(canvas, {
-                  type: 'bar',
-                  data: {
-                    labels: ['2025'],
-                    datasets: [
-                      { label: 'Akses Aman', data: [aman25 ?? 0], backgroundColor: cssVar('--viz-aman') },
-                      { label: 'Layak (non-Aman)', data: [layakNon], backgroundColor: cssVar('--viz-layak') },
-                      { label: 'Dasar / Belum Layak', data: [sisa], backgroundColor: cssVar('--viz-muted') },
-                      { label: 'BABS Terbuka', data: [babs25 ?? 0], backgroundColor: cssVar('--viz-babs') },
-                    ],
-                  },
-                  options: {
-                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
-                    plugins: {
-                      legend: { display: false },
-                      tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}` } },
-                    },
-                  },
-                })}
-              />
-              <ChartLegend
-                style={{ marginTop: 10 }}
-                items={[
-                  { color: 'var(--viz-aman)', label: 'Akses Aman', value: fmtPct(aman25) },
-                  { color: 'var(--viz-layak)', label: 'Layak (non-Aman)', value: fmtPct(layakNon) },
-                  { color: 'var(--viz-muted)', label: 'Dasar / Belum Layak', value: fmtPct(sisa) },
-                  { color: 'var(--viz-babs)', label: 'BABS Terbuka', value: fmtPct(babs25) },
-                ]}
-              />
+              <LadderChart rungs={provLadder?.rungs} idKey={provKode} theme={theme} />
             </SectionCard>
 
             {/* Choropleth map */}

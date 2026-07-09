@@ -102,6 +102,7 @@ export default function TopNav({ active, onNavigate }) {
             </button>
           </div>
         </div>
+        <div aria-hidden="true" style={{ height: 4, background: 'var(--island-accent, transparent)', transition: 'background 0.25s ease-out' }} />
       </nav>
 
       {/* Mobile menu */}

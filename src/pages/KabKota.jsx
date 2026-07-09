@@ -1,7 +1,6 @@
-import { useState, useMemo } from 'react';
-import Chart from 'chart.js/auto';
-import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog } from '../hooks/useSheetData';
-import { useTheme, cssVar } from '../lib/theme';
+import { useState, useMemo, useEffect } from 'react';
+import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot } from '../hooks/useSheetData';
+import { useTheme } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
 import { exportKabkotaPptx } from '../lib/exportPptx';
@@ -9,7 +8,7 @@ import Breadcrumb from '../components/Breadcrumb';
 import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
 import MetricCard from '../components/MetricCard';
-import ChartContainer, { ChartLegend } from '../components/ChartContainer';
+import LadderChart from '../components/LadderChart';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
@@ -21,53 +20,17 @@ import { islandOf } from '../lib/islandTheme';
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
 
 // ── Akses card ─────────────────────────────────────────────────
-function AksesCard({ kab, theme }) {
-  const aman = kab.aman2025 ?? 0;
-  const layakNon = Math.max(0, (kab.layak2025 ?? 0) - aman);
+function AksesCard({ kab, theme, ladderRungs }) {
   const babs = kab.babs2025 ?? 0;
-  const sisa = Math.max(0, 100 - (kab.layak2025 ?? 0) - babs);
-
   return (
-    <SectionCard title="Akses Sanitasi · 2025" subtitle='Sumber: sheet "Akses Kabkot" (BPS)'>
+    <SectionCard title="Akses Sanitasi · 2025" subtitle='Sumber: sheet "Akses Kabkot" & "Ladder Kabupaten/Kota" (BPS)'>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
         <MetricCard label="Akses Layak" value={kab.layak2025 != null ? fmtPct(kab.layak2025) : null} tone="layak" />
         <MetricCard label="Akses Aman" value={kab.aman2025 != null ? fmtPct(kab.aman2025) : null} tone="aman" />
         <MetricCard label="BABS Terbuka" value={kab.babs2025 != null ? fmtPct(kab.babs2025) : null} tone={babs > 10 ? 'bad' : 'babs'} />
       </div>
-      <ChartContainer
-        height={56}
-        ariaLabel={`Komposisi akses sanitasi ${kab.kabkot} 2025`}
-        deps={[kab.kode, theme]}
-        build={(canvas) => new Chart(canvas, {
-          type: 'bar',
-          data: {
-            labels: ['2025'],
-            datasets: [
-              { label: 'Akses Aman', data: [aman], backgroundColor: cssVar('--viz-aman') },
-              { label: 'Layak (non-Aman)', data: [layakNon], backgroundColor: cssVar('--viz-layak') },
-              { label: 'Dasar / Belum Layak', data: [sisa], backgroundColor: cssVar('--viz-muted') },
-              { label: 'BABS Terbuka', data: [babs], backgroundColor: cssVar('--viz-babs') },
-            ],
-          },
-          options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
-            plugins: {
-              legend: { display: false },
-              tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}` } },
-            },
-          },
-        })}
-      />
-      <ChartLegend
-        style={{ marginTop: 10 }}
-        items={[
-          { color: 'var(--viz-aman)', label: 'Aman', value: fmtPct(aman) },
-          { color: 'var(--viz-layak)', label: 'Layak (non-Aman)', value: fmtPct(layakNon) },
-          { color: 'var(--viz-muted)', label: 'Dasar / Belum Layak', value: fmtPct(sisa) },
-          { color: 'var(--viz-babs)', label: 'BABS', value: fmtPct(babs) },
-        ]}
-      />
+      <div className="section-label" style={{ marginBottom: 8 }}>Tangga Sanitasi</div>
+      <LadderChart rungs={ladderRungs} idKey={kab.kode} theme={theme} />
     </SectionCard>
   );
 }
@@ -260,6 +223,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const { data: ipalData } = useIPAL();
   const { data: ipltData } = useIPLT();
   const { data: logs } = useLog();
+  const { data: ladderKab } = useLadderKabkot();
   const { theme } = useTheme();
   const [filterProv, setFilterProv] = useState(initialProvinsi ?? '');
   const [selected, setSelected] = useState(null);
@@ -300,8 +264,19 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       .sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)));
   }, [logs, selectedKab]);
 
+  const kabLadder = useMemo(
+    () => (selectedKab ? (ladderKab.find((r) => String(r.kode) === String(selectedKab.kode))?.rungs ?? null) : null),
+    [ladderKab, selectedKab],
+  );
+
   const letter = kel ? clusterLetter(kel.clusterTataKelola) : null;
   const island = selectedKab ? islandOf(selectedKab.kode) : null;
+
+  useEffect(() => {
+    if (island) document.documentElement.setAttribute('data-island', island.id);
+    else document.documentElement.removeAttribute('data-island');
+    return () => document.documentElement.removeAttribute('data-island');
+  }, [island]);
   const clusterInfo = letter ? `${letter} — ${CLUSTER_LABELS[letter]}` : null;
 
   // ── Exports ──
@@ -419,7 +394,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
 
       {selectedKab ? (
         <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
-          <AksesCard kab={selectedKab} theme={theme} />
+          <AksesCard kab={selectedKab} theme={theme} ladderRungs={kabLadder} />
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
         </div>
