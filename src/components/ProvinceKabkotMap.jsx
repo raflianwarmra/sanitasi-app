@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadProvinceGeo, makeProjection, geometryToPath } from '../lib/geo';
+import { loadProvinceGeo, loadNationalGeo, makeProjection, geometryToPath } from '../lib/geo';
 import { MAP_METRICS } from '../lib/mapMetrics';
 import { fmtPct } from '../lib/format';
 import EmptyState from './EmptyState';
@@ -93,7 +93,7 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
 
   useEffect(() => {
     let alive = true;
-    loadProvinceGeo(provKode)
+    (provKode === 'ID' ? loadNationalGeo() : loadProvinceGeo(provKode))
       .then((fc) => { if (alive) setGeoState({ prov: provKode, fc, failed: false }); })
       .catch(() => { if (alive) setGeoState({ prov: provKode, fc: null, failed: true }); });
     return () => { alive = false; };

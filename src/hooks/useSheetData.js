@@ -3,6 +3,7 @@ import {
   getSheetData, SHEET_GIDS,
   normalizeProvinsi, normalizeKabkot, normalizeKelembagaan,
   normalizeInfra, normalizeLog, normalizeTeam,
+  normalizeNasional, normalizeLadderNasional,
 } from '../lib/sheets';
 
 export function useSheetData(sheetName, normalizer) {
@@ -53,3 +54,5 @@ export function useIPAL()        { return useSheetData(SHEET_GIDS.IPAL, ipalNorm
 export function useIPLT()        { return useSheetData(SHEET_GIDS.IPLT, ipltNormalizer); }
 export function useLog()         { return useSheetData(SHEET_GIDS.LOG, normalizeLog); }
 export function useTeam()        { return useSheetData(SHEET_GIDS.TEAM, normalizeTeam); }
+export function useNasional()    { return useSheetData(SHEET_GIDS.NASIONAL, normalizeNasional); }
+export function useLadderNasional() { return useSheetData(SHEET_GIDS.LADDER_NAS, normalizeLadderNasional); }

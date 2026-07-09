@@ -11,6 +11,8 @@ export const SHEET_GIDS = {
   IPLT:        'IPLT',
   LOG:         'Log Catatan Infras',
   TEAM:        'Team Member',
+  NASIONAL:    'Nasional',
+  LADDER_NAS:  'Ladder Nasional',
 };
 
 function csvUrl(sheet) {
@@ -220,6 +222,34 @@ export function normalizeTeam(raw) {
     email: pick(r, 'email'),
     raw: r,
   })).filter((m) => m.nama);
+}
+
+// Nasional sheet: rows = indicator ("Ladder" col), columns = years 2017-2025.
+export const NAT_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
+
+function yearSeries(r) {
+  const out = {};
+  NAT_YEARS.forEach((y) => { out[`y${y}`] = toNum(r[String(y)]); });
+  return out;
+}
+
+export function normalizeNasional(raw) {
+  const out = { aman: null, layak: null, babs: null };
+  raw.forEach((r) => {
+    const label = String(pick(r, 'ladder') || '').toLowerCase();
+    if (!label) return;
+    if (label.includes('layak')) out.layak = yearSeries(r);
+    else if (label.includes('babs')) out.babs = yearSeries(r);
+    else if (label.includes('aman')) out.aman = yearSeries(r);
+  });
+  return out;
+}
+
+// Ladder Nasional sheet: 6 sanitation-ladder rungs over the same years.
+export function normalizeLadderNasional(raw) {
+  return raw
+    .map((r) => ({ label: pick(r, 'ladder'), values: yearSeries(r) }))
+    .filter((x) => x.label);
 }
 
 // ── Main fetcher ─────────────────────────────────────────────

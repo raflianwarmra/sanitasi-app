@@ -34,7 +34,7 @@ async function newDeck(subtitle) {
     objects: [
       { rect: { x: 0, y: 7.08, w: '100%', h: 0.42, fill: { color: C.bg } } },
       { text: {
-        text: `Sanitasi.id · ${subtitle} · dibuat ${todayLabel()}`,
+        text: `Dashboard Data Sanitasi · Tim Sanitasi Bappenas · ${subtitle} · dibuat ${todayLabel()}`,
         options: { x: 0.5, y: 7.08, w: 9, h: 0.42, fontFace: FONT, fontSize: 9, color: C.ink3, valign: 'middle' },
       } },
     ],

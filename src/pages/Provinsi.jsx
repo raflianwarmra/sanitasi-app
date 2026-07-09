@@ -1,17 +1,21 @@
 import { useState, useMemo } from 'react';
 import Chart from 'chart.js/auto';
-import { useProvinsi, useKabkot, useIPAL, useIPLT } from '../hooks/useSheetData';
+import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional } from '../hooks/useSheetData';
 import { useTheme, cssVar } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
 import { exportProvincePptx } from '../lib/exportPptx';
+import { NAT_YEARS } from '../lib/sheets';
+import { islandOf } from '../lib/islandTheme';
 import Breadcrumb from '../components/Breadcrumb';
 import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
 import MetricCard from '../components/MetricCard';
+import IndicatorCard from '../components/IndicatorCard';
 import ChartContainer, { ChartLegend } from '../components/ChartContainer';
 import ProvinceKabkotMap from '../components/ProvinceKabkotMap';
 import { MAP_METRICS } from '../lib/mapMetrics';
+import NationalView from '../components/NationalView';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
@@ -19,6 +23,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import Icon from '../components/Icon';
 
 const YEARS = [2022, 2023, 2024, 2025];
+const NATIONAL_KEY = '__nasional__';
 
 function baseChartOpts() {
   const grid = cssVar('--viz-grid');
@@ -34,47 +39,38 @@ function baseChartOpts() {
   };
 }
 
-// KPI + trend chart card for one indicator.
-function IndicatorCard({ title, current, targetLabel, target, note, build, deps, ariaLabel, tone }) {
-  return (
-    <SectionCard title={title} pad>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10, borderBottom: '1px solid var(--line-2)', marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Capaian 2025</div>
-          <div className="num" style={{ fontSize: 27, fontWeight: 700, lineHeight: 1.1, color: tone }}>
-            {current != null ? fmtPct(current) : '—'}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>{targetLabel}</div>
-          <div className="num" style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>
-            {target != null ? fmtPct(target, 1) : '—'}
-          </div>
-          {note && <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 2 }}>{note}</div>}
-        </div>
-      </div>
-      <ChartContainer height={190} build={build} deps={deps} ariaLabel={ariaLabel} />
-    </SectionCard>
-  );
-}
-
 export default function Provinsi({ onNavigate }) {
   const { data: provinces, loading: lP, error: eP, reload } = useProvinsi();
   const { data: kabkotAll } = useKabkot();
   const { data: ipal } = useIPAL();
   const { data: iplt } = useIPLT();
+  const { data: nasional } = useNasional();
+  const { data: ladder } = useLadderNasional();
   const { theme } = useTheme();
 
-  const [selected, setSelected] = useState(null);
+  // National is the default view; provinces sorted by BPS kode.
+  const [selectedKode, setSelectedKode] = useState(NATIONAL_KEY);
   const [mapMetric, setMapMetric] = useState('aman');
   const [sortBy, setSortBy] = useState('aman');
   const [sortDir, setSortDir] = useState('desc');
 
-  const sorted = useMemo(() => [...provinces].sort((a, b) => a.provinsi.localeCompare(b.provinsi, 'id')), [provinces]);
-  const selectedProv = selected ?? sorted[0];
+  const sorted = useMemo(
+    () => [...provinces].sort((a, b) => Number(a.kode) - Number(b.kode)),
+    [provinces],
+  );
+  const isNational = selectedKode === NATIONAL_KEY;
+  const selectedProv = isNational
+    ? null
+    : (sorted.find((p) => String(p.kode).trim() === selectedKode) ?? sorted[0] ?? null);
   const provKode = selectedProv ? String(selectedProv.kode).trim() : '';
+  const island = selectedProv ? islandOf(provKode) : null;
 
-  // Kab/kota within province: BPS kode prefix first, name match as fallback.
+  const selectOptions = useMemo(() => [
+    { value: NATIONAL_KEY, label: 'Indonesia — Nasional' },
+    ...sorted.map((p) => ({ value: String(p.kode).trim(), label: p.provinsi })),
+  ], [sorted]);
+
+  // ── Province-scoped data (kode-prefix join, name fallback) ──
   const kabsInProv = useMemo(() => {
     if (!selectedProv) return [];
     const byKode = kabkotAll.filter((k) => provKode && String(k.kode).startsWith(provKode));
@@ -84,11 +80,11 @@ export default function Provinsi({ onNavigate }) {
   }, [kabkotAll, selectedProv, provKode]);
 
   const ipalHere = useMemo(
-    () => ipal.filter((i) => (i.kode && String(i.kode).startsWith(provKode)) || (i.provinsi && selectedProv && i.provinsi.toLowerCase() === selectedProv.provinsi.toLowerCase())),
+    () => (selectedProv ? ipal.filter((i) => (i.kode && String(i.kode).startsWith(provKode)) || (i.provinsi && i.provinsi.toLowerCase() === selectedProv.provinsi.toLowerCase())) : []),
     [ipal, selectedProv, provKode],
   );
   const ipltHere = useMemo(
-    () => iplt.filter((i) => (i.kode && String(i.kode).startsWith(provKode)) || (i.provinsi && selectedProv && i.provinsi.toLowerCase() === selectedProv.provinsi.toLowerCase())),
+    () => (selectedProv ? iplt.filter((i) => (i.kode && String(i.kode).startsWith(provKode)) || (i.provinsi && i.provinsi.toLowerCase() === selectedProv.provinsi.toLowerCase())) : []),
     [iplt, selectedProv, provKode],
   );
 
@@ -106,13 +102,12 @@ export default function Provinsi({ onNavigate }) {
   const babsHigh = useMemo(() => kabsInProv.filter((k) => (k.babs2025 ?? 0) > 10).sort((a, b) => (b.babs2025 ?? 0) - (a.babs2025 ?? 0)), [kabsInProv]);
   const amanLow = useMemo(() => kabsInProv.filter((k) => k.aman2025 != null && k.aman2025 < 5).sort((a, b) => (a.aman2025 ?? 0) - (b.aman2025 ?? 0)), [kabsInProv]);
 
-  // Top/bottom for the active map metric.
   const metricDef = MAP_METRICS[mapMetric];
   const rankedByMetric = useMemo(() => {
     const withVal = kabsInProv.filter((k) => k[metricDef.key] != null);
-    return [...withVal].sort((a, b) => metricDef.higherBetter
+    return [...withVal].sort((a, b) => (metricDef.higherBetter
       ? (b[metricDef.key] ?? 0) - (a[metricDef.key] ?? 0)
-      : (a[metricDef.key] ?? 0) - (b[metricDef.key] ?? 0));
+      : (a[metricDef.key] ?? 0) - (b[metricDef.key] ?? 0)));
   }, [kabsInProv, metricDef]);
 
   const tableRows = useMemo(() => {
@@ -130,8 +125,51 @@ export default function Provinsi({ onNavigate }) {
     else { setSortBy(k); setSortDir(k === 'kabkot' ? 'asc' : 'desc'); }
   };
 
+  // ── National aggregates for exports ──
+  const natNoIPLT = useMemo(() => {
+    const have = new Set(iplt.map((i) => String(i.kode)));
+    return kabkotAll.filter((k) => !have.has(String(k.kode)));
+  }, [kabkotAll, iplt]);
+  const natBroken = useMemo(() => [
+    ...ipal.filter((x) => !x.isFunctioning),
+    ...iplt.filter((x) => !x.isFunctioning),
+  ], [ipal, iplt]);
+
   // ── Exports ──
   const handleCsv = () => {
+    if (isNational) {
+      downloadCsvSections('sanitasi-nasional-indonesia', [
+        nasional?.layak && {
+          title: 'Indikator Nasional (%)',
+          columns: [{ key: 'indikator', label: 'Indikator' }, ...NAT_YEARS.map((y) => ({ key: `y${y}`, label: String(y) }))],
+          rows: [
+            { indikator: 'Akses Layak (termasuk Aman)', ...Object.fromEntries(NAT_YEARS.map((y) => [`y${y}`, csvNum(nasional.layak?.[`y${y}`])])) },
+            { indikator: 'Akses Aman', ...Object.fromEntries(NAT_YEARS.map((y) => [`y${y}`, csvNum(nasional.aman?.[`y${y}`])])) },
+            { indikator: 'BABS di Tempat Terbuka', ...Object.fromEntries(NAT_YEARS.map((y) => [`y${y}`, csvNum(nasional.babs?.[`y${y}`])])) },
+          ],
+        },
+        ladder.length && {
+          title: 'Tangga Sanitasi Nasional (%)',
+          columns: [{ key: 'jenjang', label: 'Jenjang' }, ...NAT_YEARS.map((y) => ({ key: `y${y}`, label: String(y) }))],
+          rows: ladder.map((r) => ({ jenjang: r.label, ...Object.fromEntries(NAT_YEARS.map((y) => [`y${y}`, csvNum(r.values[`y${y}`])])) })),
+        },
+        {
+          title: 'Provinsi (%)',
+          columns: [
+            { key: 'kode', label: 'Kode BPS' },
+            { key: 'provinsi', label: 'Provinsi' },
+            { key: 'aman', label: 'Akses Aman 2025' },
+            { key: 'layak', label: 'Akses Layak 2025' },
+            { key: 'babs', label: 'BABS Terbuka 2025' },
+          ],
+          rows: sorted.map((p) => ({
+            kode: p.kode, provinsi: p.provinsi,
+            aman: csvNum(p.aman2025), layak: csvNum(p.layak2025), babs: csvNum(p.babs2025),
+          })),
+        },
+      ].filter(Boolean));
+      return;
+    }
     if (!selectedProv) return;
     downloadCsvSections(`sanitasi-provinsi-${slugify(selectedProv.provinsi)}`, [
       {
@@ -165,44 +203,72 @@ export default function Provinsi({ onNavigate }) {
     ]);
   };
 
-  const handlePptx = () => exportProvincePptx(selectedProv, kabsInProv, {
-    ipal: ipalHere, iplt: ipltHere, kabsNoIPLT, broken: brokenUnits,
-  });
+  const handlePptx = () => {
+    if (isNational) {
+      const pseudo = {
+        kode: 'ID',
+        provinsi: 'Indonesia',
+        layak: { y2022: nasional?.layak?.y2022, y2023: nasional?.layak?.y2023, y2024: nasional?.layak?.y2024, y2025: nasional?.layak?.y2025 },
+        aman: { y2022: nasional?.aman?.y2022, y2023: nasional?.aman?.y2023, y2024: nasional?.aman?.y2024, y2025: nasional?.aman?.y2025, target2026: null, target2029: null },
+        babs: { y2022: nasional?.babs?.y2022, y2023: nasional?.babs?.y2023, y2024: nasional?.babs?.y2024, y2025: nasional?.babs?.y2025, target2026: null, target2029: null },
+      };
+      const provRows = sorted.map((p) => ({
+        kode: String(p.kode).trim(), kabkot: p.provinsi,
+        aman2025: p.aman2025, layak2025: p.layak2025, babs2025: p.babs2025,
+      }));
+      return exportProvincePptx(pseudo, provRows, {
+        ipal, iplt,
+        kabsNoIPLT: natNoIPLT,
+        broken: natBroken,
+      });
+    }
+    return exportProvincePptx(selectedProv, kabsInProv, {
+      ipal: ipalHere, iplt: ipltHere, kabsNoIPLT, broken: brokenUnits,
+    });
+  };
 
   if (lP) return <LoadingSpinner text="Memuat data provinsi…" />;
   if (eP) return <ErrorCard message={eP} onRetry={reload} />;
-  if (!selectedProv) {
+  if (!sorted.length) {
     return <EmptyState icon="info" title="Tidak ada data provinsi" text='Periksa sheet "Akses Provinsi" pada Google Sheets sumber.' />;
   }
 
-  const iGood = ipltHere.filter((x) => x.isFunctioning).length;
-  const aGood = ipalHere.filter((x) => x.isFunctioning).length;
-  const aman25 = selectedProv.aman.y2025;
-  const layak25 = selectedProv.layak.y2025;
-  const babs25 = selectedProv.babs.y2025;
+  // ── Province-view figures ──
+  const aman25 = selectedProv?.aman.y2025;
+  const layak25 = selectedProv?.layak.y2025;
+  const babs25 = selectedProv?.babs.y2025;
   const layakNon = Math.max(0, (layak25 ?? 0) - (aman25 ?? 0));
   const sisa = Math.max(0, 100 - (layak25 ?? 0) - (babs25 ?? 0));
-
+  const iGood = ipltHere.filter((x) => x.isFunctioning).length;
+  const aGood = ipalHere.filter((x) => x.isFunctioning).length;
   const hasAlerts = kabsNoIPLT.length || brokenUnits.length || babsHigh.length || amanLow.length;
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <Breadcrumb
-        path={[{ label: 'Beranda', path: '/' }, { label: 'Provinsi', path: '/provinsi' }, { label: selectedProv.provinsi }]}
+        path={[
+          { label: 'Beranda', path: '/' },
+          { label: 'Provinsi', path: '/provinsi' },
+          { label: isNational ? 'Nasional' : selectedProv.provinsi },
+        ]}
         onNavigate={onNavigate}
       />
 
       <PageHeader
-        kicker="Profil Sanitasi Provinsi"
-        title={selectedProv.provinsi}
-        meta={`${kabsInProv.length} kabupaten/kota · Akses layak, aman, BABS & infrastruktur · Data 2025`}
+        kicker={isNational ? 'Profil Sanitasi Nasional' : `Profil Sanitasi Provinsi · ${island?.name ?? ''}`}
+        title={isNational ? 'Indonesia' : selectedProv.provinsi}
+        island={island}
+        meta={isNational
+          ? `${sorted.length} provinsi · ${kabkotAll.length} kabupaten/kota · Data 2017–2025`
+          : `${kabsInProv.length} kabupaten/kota · Akses layak, aman, BABS & infrastruktur · Data 2025`}
         controls={(
           <>
             <SearchableSelect
               style={{ width: 230 }}
-              value={selectedProv.provinsi}
-              onChange={(v) => setSelected(provinces.find((p) => p.provinsi === v) ?? null)}
-              options={sorted.map((p) => p.provinsi)}
+              value={selectedKode}
+              onChange={setSelectedKode}
+              options={selectOptions}
+              sortOptions={false}
               placeholder="Pilih provinsi"
             />
             <ExportButtons onCsv={handleCsv} onPptx={handlePptx} />
@@ -210,330 +276,287 @@ export default function Provinsi({ onNavigate }) {
         )}
       />
 
-      <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
-
-        {/* Indicator trend cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          <IndicatorCard
-            title="Akses Layak (termasuk Aman)"
-            current={layak25} targetLabel="Target nasional" target={100}
-            tone="var(--viz-layak)"
-            ariaLabel={`Tren akses layak ${selectedProv.provinsi} 2022 sampai 2025`}
-            deps={[selectedProv.provinsi, theme]}
-            build={(canvas) => new Chart(canvas, {
-              type: 'bar',
-              data: {
-                labels: YEARS,
-                datasets: [{ data: YEARS.map((y) => selectedProv.layak[`y${y}`]), backgroundColor: cssVar('--viz-layak'), borderRadius: 3, maxBarThickness: 42 }],
-              },
-              options: baseChartOpts(),
-            })}
+      <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40 }}>
+        {isNational ? (
+          <NationalView
+            provinces={sorted}
+            nasional={nasional}
+            ladder={ladder}
+            kabkotAll={kabkotAll}
+            ipal={ipal}
+            iplt={iplt}
+            theme={theme}
+            onOpenProvince={(kode) => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); }}
           />
-          <IndicatorCard
-            title="Akses Aman"
-            current={aman25} targetLabel="Target 2029" target={selectedProv.aman.target2029}
-            note={`Target 2026: ${fmtPct(selectedProv.aman.target2026, 1)}`}
-            tone="var(--viz-aman)"
-            ariaLabel={`Tren akses aman ${selectedProv.provinsi} dengan target 2026 dan 2029`}
-            deps={[selectedProv.provinsi, theme]}
-            build={(canvas) => {
-              const labels = [...YEARS, 'T-2026', 'T-2029'];
-              const values = [...YEARS.map((y) => selectedProv.aman[`y${y}`]), selectedProv.aman.target2026, selectedProv.aman.target2029];
-              const c = cssVar('--viz-aman');
-              return new Chart(canvas, {
-                type: 'bar',
-                data: {
-                  labels,
-                  datasets: [{
-                    data: values,
-                    backgroundColor: values.map((_, i) => (i < YEARS.length ? c : 'transparent')),
-                    borderColor: c, borderWidth: 1.5, borderRadius: 3, borderSkipped: false, maxBarThickness: 42,
-                  }],
-                },
-                options: baseChartOpts(),
-              });
-            }}
-          />
-          <IndicatorCard
-            title="BABS di Tempat Terbuka"
-            current={babs25} targetLabel="Target 2029" target={selectedProv.babs.target2029}
-            note={`Target 2026: ${fmtPct(selectedProv.babs.target2026, 1)}`}
-            tone="var(--viz-babs)"
-            ariaLabel={`Tren BABS terbuka ${selectedProv.provinsi} dengan proyeksi target`}
-            deps={[selectedProv.provinsi, theme]}
-            build={(canvas) => {
-              const labels = [...YEARS, 'T-2026', 'T-2029'];
-              const values = [...YEARS.map((y) => selectedProv.babs[`y${y}`]), selectedProv.babs.target2026, selectedProv.babs.target2029];
-              const c = cssVar('--viz-babs');
-              return new Chart(canvas, {
-                type: 'line',
-                data: {
-                  labels,
-                  datasets: [{
-                    data: values, borderColor: c, backgroundColor: c,
-                    tension: 0.1, pointRadius: 3.5,
-                    segment: { borderDash: (ctx) => (ctx.p0DataIndex >= YEARS.length - 1 ? [6, 6] : undefined) },
-                  }],
-                },
-                options: baseChartOpts(),
-              });
-            }}
-          />
-        </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 16 }}>
 
-        {/* Ladder sanitasi */}
-        <SectionCard
-          title="Komposisi Akses Sanitasi · 2025"
-          subtitle="Layak (non-aman) dihitung sebagai Layak − Aman; sisanya akses dasar/belum layak."
-        >
-          <ChartContainer
-            height={64}
-            ariaLabel={`Komposisi akses sanitasi ${selectedProv.provinsi} 2025`}
-            deps={[selectedProv.provinsi, theme]}
-            build={(canvas) => new Chart(canvas, {
-              type: 'bar',
-              data: {
-                labels: ['2025'],
-                datasets: [
-                  { label: 'Akses Aman', data: [aman25 ?? 0], backgroundColor: cssVar('--viz-aman') },
-                  { label: 'Layak (non-Aman)', data: [layakNon], backgroundColor: cssVar('--viz-layak') },
-                  { label: 'Dasar / Belum Layak', data: [sisa], backgroundColor: cssVar('--viz-muted') },
-                  { label: 'BABS Terbuka', data: [babs25 ?? 0], backgroundColor: cssVar('--viz-babs') },
-                ],
-              },
-              options: {
-                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}` } },
-                },
-              },
-            })}
-          />
-          <ChartLegend
-            style={{ marginTop: 10 }}
-            items={[
-              { color: 'var(--viz-aman)', label: 'Akses Aman', value: fmtPct(aman25) },
-              { color: 'var(--viz-layak)', label: 'Layak (non-Aman)', value: fmtPct(layakNon) },
-              { color: 'var(--viz-muted)', label: 'Dasar / Belum Layak', value: fmtPct(sisa) },
-              { color: 'var(--viz-babs)', label: 'BABS Terbuka', value: fmtPct(babs25) },
-            ]}
-          />
-        </SectionCard>
-
-        {/* Choropleth map */}
-        <SectionCard
-          title="Peta Sebaran Kab/Kota"
-          subtitle="Warna wilayah mengikuti indikator terpilih · klik wilayah untuk membuka profil"
-          actions={(
-            <div className="seg" role="group" aria-label="Pilih indikator peta">
-              {Object.entries(MAP_METRICS).map(([k, def]) => (
-                <button key={k} type="button" aria-pressed={mapMetric === k} onClick={() => setMapMetric(k)}>
-                  {def.label}
-                </button>
-              ))}
-            </div>
-          )}
-        >
-          <ProvinceKabkotMap
-            provKode={provKode}
-            kabs={kabsInProv}
-            metric={mapMetric}
-            onOpenProfile={(kab) => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(kab.kode)}`)}
-          />
-
-          {/* Top & bottom for the active metric */}
-          {rankedByMetric.length > 1 && (
-            <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line-2)' }}>
-              {[
-                { label: `${metricDef.label} terbaik`, rows: rankedByMetric.slice(0, 5), icon: 'arrowUp', color: 'var(--ok)' },
-                { label: `${metricDef.label} perlu perhatian`, rows: rankedByMetric.slice(-5).reverse(), icon: 'arrowDown', color: 'var(--bad)' },
-              ].map(({ label, rows, icon, color }) => (
-                <div key={label}>
-                  <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Icon name={icon} size={12} style={{ color }} />
-                    {label}
-                  </div>
-                  <div style={{ display: 'grid', gap: 4 }}>
-                    {rows.map((k) => (
-                      <button
-                        key={k.kode || k.kabkot}
-                        type="button"
-                        onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)}
-                        style={{
-                          all: 'unset', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
-                          gap: 10, fontSize: 12.5, padding: '5px 8px', borderRadius: 5,
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.kabkot}</span>
-                        <span className="num" style={{ fontWeight: 600 }}>{fmtPct(k[metricDef.key], 1)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Infrastructure summary */}
-        <SectionCard title="Infrastruktur IPAL & IPLT" subtitle={`Aset air limbah domestik tercatat di ${selectedProv.provinsi}`}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
-            <MetricCard label="Unit IPAL" value={ipalHere.length} unit="" sub={`${aGood} berfungsi · ${ipalHere.length - aGood} tidak`} />
-            <MetricCard label="Unit IPLT" value={ipltHere.length} unit="" sub={`${iGood} berfungsi · ${ipltHere.length - iGood} tidak`} />
-            <MetricCard label="Kab/Kota tanpa IPLT" value={kabsNoIPLT.length} unit="" sub={`dari ${kabsInProv.length} kab/kota`} tone={kabsNoIPLT.length ? 'warn' : 'ok'} />
-            <MetricCard label="Unit tidak berfungsi" value={brokenUnits.length} unit="" sub="IPAL + IPLT" tone={brokenUnits.length ? 'bad' : 'ok'} />
-          </div>
-        </SectionCard>
-
-        {/* Structured alerts */}
-        <SectionCard title="Isu Prioritas" subtitle="Hal yang memerlukan tindak lanjut perencanaan">
-          {!hasAlerts && (
-            <EmptyState compact icon="check" title="Tidak ada isu prioritas terdeteksi" text="Seluruh indikator provinsi ini berada dalam ambang wajar." />
-          )}
-          {hasAlerts && (
-            <div style={{ display: 'grid', gap: 14 }}>
-              {kabsNoIPLT.length > 0 && (
-                <AlertGroup
-                  tone="bad" title={`${kabsNoIPLT.length} kab/kota belum memiliki IPLT`}
-                  items={kabsNoIPLT.map((k) => ({ id: k.kode || k.kabkot, label: k.kabkot }))}
-                />
-              )}
-              {brokenUnits.length > 0 && (
-                <AlertGroup
-                  tone="warn" title={`${brokenUnits.length} unit IPAL/IPLT tidak berfungsi`}
-                  items={brokenUnits.map((u) => ({ id: u.id, label: `${u.type} · ${u.nama}${u.kabkot ? ` (${u.kabkot})` : ''}` }))}
-                />
-              )}
-              {babsHigh.length > 0 && (
-                <AlertGroup
-                  tone="bad" title={`${babsHigh.length} kab/kota dengan BABS terbuka > 10%`}
-                  items={babsHigh.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.babs2025, 1)}` }))}
-                />
-              )}
-              {amanLow.length > 0 && (
-                <AlertGroup
-                  tone="warn" title={`${amanLow.length} kab/kota dengan akses aman < 5%`}
-                  items={amanLow.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.aman2025, 1)}` }))}
-                />
-              )}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Stacked distribution chart */}
-        <SectionCard title="Capaian per Kab/Kota · 2025" subtitle="Urut dari akses layak tertinggi">
-          <ChartLegend
-            style={{ marginBottom: 10 }}
-            items={[
-              { color: 'var(--viz-aman)', label: 'Akses Aman' },
-              { color: 'var(--viz-layak)', label: 'Layak (non-Aman)' },
-              { color: 'var(--viz-babs)', label: 'BABS Terbuka' },
-            ]}
-          />
-          <ChartContainer
-            height={Math.max(280, kabsInProv.length * 22)}
-            ariaLabel={`Capaian sanitasi per kab/kota di ${selectedProv.provinsi}`}
-            deps={[selectedProv.provinsi, kabsInProv.length, theme]}
-            build={(canvas) => {
-              const s = [...kabsInProv].sort((a, b) => (b.layak2025 ?? 0) - (a.layak2025 ?? 0));
-              const tick = cssVar('--ink-3');
-              return new Chart(canvas, {
-                type: 'bar',
-                data: {
-                  labels: s.map((k) => k.kabkot),
-                  datasets: [
-                    { label: 'Akses Aman', data: s.map((k) => k.aman2025 ?? 0), backgroundColor: cssVar('--viz-aman'), stack: 'm', barPercentage: 0.72 },
-                    { label: 'Layak (non-Aman)', data: s.map((k) => Math.max(0, (k.layak2025 ?? 0) - (k.aman2025 ?? 0))), backgroundColor: cssVar('--viz-layak'), stack: 'm', barPercentage: 0.72 },
-                    { label: 'BABS Terbuka', data: s.map((k) => k.babs2025 ?? 0), backgroundColor: cssVar('--viz-babs'), stack: 'm', barPercentage: 0.72 },
-                  ],
-                },
-                options: {
-                  indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                  interaction: { mode: 'index', intersect: false },
-                  scales: {
-                    x: { stacked: true, max: 120, grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 10 }, color: tick } },
-                    y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 }, color: tick } },
+            {/* Indicator trend cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              <IndicatorCard
+                title="Akses Layak (termasuk Aman)"
+                current={layak25} targetLabel="Target nasional" target={100}
+                tone="var(--viz-layak)"
+                ariaLabel={`Tren akses layak ${selectedProv.provinsi} 2022 sampai 2025`}
+                deps={[selectedProv.provinsi, theme]}
+                build={(canvas) => new Chart(canvas, {
+                  type: 'bar',
+                  data: {
+                    labels: YEARS,
+                    datasets: [{ data: YEARS.map((y) => selectedProv.layak[`y${y}`]), backgroundColor: cssVar('--viz-layak'), borderRadius: 3, maxBarThickness: 42 }],
                   },
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      callbacks: {
-                        label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}`,
-                        footer: (items) => {
-                          let aman = 0, non = 0;
-                          items.forEach((t) => {
-                            if (t.dataset.label === 'Akses Aman') aman = Number(t.raw) || 0;
-                            if (t.dataset.label === 'Layak (non-Aman)') non = Number(t.raw) || 0;
-                          });
-                          return `Total Akses Layak: ${fmtPct(aman + non)}`;
-                        },
-                      },
+                  options: baseChartOpts(),
+                })}
+              />
+              <IndicatorCard
+                title="Akses Aman"
+                current={aman25} targetLabel="Target 2029" target={selectedProv.aman.target2029}
+                note={`Target 2026: ${fmtPct(selectedProv.aman.target2026, 1)}`}
+                tone="var(--viz-aman)"
+                ariaLabel={`Tren akses aman ${selectedProv.provinsi} dengan target 2026 dan 2029`}
+                deps={[selectedProv.provinsi, theme]}
+                build={(canvas) => {
+                  const labels = [...YEARS, 'T-2026', 'T-2029'];
+                  const values = [...YEARS.map((y) => selectedProv.aman[`y${y}`]), selectedProv.aman.target2026, selectedProv.aman.target2029];
+                  const c = cssVar('--viz-aman');
+                  return new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                      labels,
+                      datasets: [{
+                        data: values,
+                        backgroundColor: values.map((_, i) => (i < YEARS.length ? c : 'transparent')),
+                        borderColor: c, borderWidth: 1.5, borderRadius: 3, borderSkipped: false, maxBarThickness: 42,
+                      }],
+                    },
+                    options: baseChartOpts(),
+                  });
+                }}
+              />
+              <IndicatorCard
+                title="BABS di Tempat Terbuka"
+                current={babs25} targetLabel="Target 2029" target={selectedProv.babs.target2029}
+                note={`Target 2026: ${fmtPct(selectedProv.babs.target2026, 1)}`}
+                tone="var(--viz-babs)"
+                ariaLabel={`Tren BABS terbuka ${selectedProv.provinsi} dengan proyeksi target`}
+                deps={[selectedProv.provinsi, theme]}
+                build={(canvas) => {
+                  const labels = [...YEARS, 'T-2026', 'T-2029'];
+                  const values = [...YEARS.map((y) => selectedProv.babs[`y${y}`]), selectedProv.babs.target2026, selectedProv.babs.target2029];
+                  const c = cssVar('--viz-babs');
+                  return new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                      labels,
+                      datasets: [{
+                        data: values, borderColor: c, backgroundColor: c,
+                        tension: 0.1, pointRadius: 3.5,
+                        segment: { borderDash: (ctx) => (ctx.p0DataIndex >= YEARS.length - 1 ? [6, 6] : undefined) },
+                      }],
+                    },
+                    options: baseChartOpts(),
+                  });
+                }}
+              />
+            </div>
+
+            {/* Ladder sanitasi */}
+            <SectionCard
+              title="Komposisi Akses Sanitasi · 2025"
+              subtitle="Layak (non-aman) dihitung sebagai Layak − Aman; sisanya akses dasar/belum layak."
+            >
+              <ChartContainer
+                height={64}
+                ariaLabel={`Komposisi akses sanitasi ${selectedProv.provinsi} 2025`}
+                deps={[selectedProv.provinsi, theme]}
+                build={(canvas) => new Chart(canvas, {
+                  type: 'bar',
+                  data: {
+                    labels: ['2025'],
+                    datasets: [
+                      { label: 'Akses Aman', data: [aman25 ?? 0], backgroundColor: cssVar('--viz-aman') },
+                      { label: 'Layak (non-Aman)', data: [layakNon], backgroundColor: cssVar('--viz-layak') },
+                      { label: 'Dasar / Belum Layak', data: [sisa], backgroundColor: cssVar('--viz-muted') },
+                      { label: 'BABS Terbuka', data: [babs25 ?? 0], backgroundColor: cssVar('--viz-babs') },
+                    ],
+                  },
+                  options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}` } },
                     },
                   },
-                },
-              });
-            }}
-          />
-        </SectionCard>
-
-        {/* Table */}
-        <SectionCard
-          title={`Data Kab/Kota · ${selectedProv.provinsi}`}
-          pad={false}
-          actions={(
-            <button className="btn btn-accent btn-sm" onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}`)}>
-              Profil kab/kota
-              <Icon name="arrowRight" size={13} />
-            </button>
-          )}
-        >
-          <div className="table-scroll" style={{ maxHeight: 480 }}>
-            <table className="data-table" style={{ minWidth: 520 }}>
-              <thead>
-                <tr>
-                  {[['kabkot', 'Kabupaten/Kota', false], ['aman', 'Akses Aman', true], ['layak', 'Akses Layak', true], ['babs', 'BABS Terbuka', true]].map(([k, l, num]) => (
-                    <th
-                      key={k}
-                      className={num ? 'td-num' : undefined}
-                      aria-sort={sortBy === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
-                    >
-                      <button
-                        onClick={() => onSort(k)}
-                        style={{
-                          all: 'unset', cursor: 'pointer', font: 'inherit', color: 'inherit',
-                          textTransform: 'inherit', letterSpacing: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
-                        }}
-                      >
-                        {l}
-                        {sortBy === k && <Icon name={sortDir === 'asc' ? 'arrowUp' : 'arrowDown'} size={11} />}
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map((k) => {
-                  const babsHi = (k.babs2025 ?? 0) > 10;
-                  return (
-                    <tr key={k.kode || k.kabkot} onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)} style={{ cursor: 'pointer' }}>
-                      <td style={{ fontWeight: 500 }}>{k.kabkot}</td>
-                      <td className="td-num">{fmtPct(k.aman2025)}</td>
-                      <td className="td-num">{fmtPct(k.layak2025)}</td>
-                      <td className="td-num" style={babsHi ? { color: 'var(--bad)', fontWeight: 600 } : undefined}>{fmtPct(k.babs2025)}</td>
-                    </tr>
-                  );
                 })}
-                {tableRows.length === 0 && (
-                  <tr><td colSpan={4}><EmptyState compact icon="info" title="Tidak ada kab/kota" text='Data sheet "Akses Kabkot" tidak memiliki baris untuk provinsi ini.' /></td></tr>
-                )}
-              </tbody>
-            </table>
+              />
+              <ChartLegend
+                style={{ marginTop: 10 }}
+                items={[
+                  { color: 'var(--viz-aman)', label: 'Akses Aman', value: fmtPct(aman25) },
+                  { color: 'var(--viz-layak)', label: 'Layak (non-Aman)', value: fmtPct(layakNon) },
+                  { color: 'var(--viz-muted)', label: 'Dasar / Belum Layak', value: fmtPct(sisa) },
+                  { color: 'var(--viz-babs)', label: 'BABS Terbuka', value: fmtPct(babs25) },
+                ]}
+              />
+            </SectionCard>
+
+            {/* Choropleth map */}
+            <SectionCard
+              title="Peta Sebaran Kab/Kota"
+              subtitle="Warna wilayah mengikuti indikator terpilih · klik wilayah untuk membuka profil"
+              actions={(
+                <div className="seg" role="group" aria-label="Pilih indikator peta">
+                  {Object.entries(MAP_METRICS).map(([k, def]) => (
+                    <button key={k} type="button" aria-pressed={mapMetric === k} onClick={() => setMapMetric(k)}>
+                      {def.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            >
+              <ProvinceKabkotMap
+                provKode={provKode}
+                kabs={kabsInProv}
+                metric={mapMetric}
+                onOpenProfile={(kab) => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(kab.kode)}`)}
+              />
+              {rankedByMetric.length > 1 && (
+                <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line-2)' }}>
+                  {[
+                    { label: `${metricDef.label} terbaik`, rows: rankedByMetric.slice(0, 5), icon: 'arrowUp', color: 'var(--ok)' },
+                    { label: `${metricDef.label} perlu perhatian`, rows: rankedByMetric.slice(-5).reverse(), icon: 'arrowDown', color: 'var(--bad)' },
+                  ].map(({ label, rows, icon, color }) => (
+                    <div key={label}>
+                      <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        <Icon name={icon} size={12} style={{ color }} />
+                        {label}
+                      </div>
+                      <div style={{ display: 'grid', gap: 4, maxWidth: 320 }}>
+                        {rows.map((k) => (
+                          <button
+                            key={k.kode || k.kabkot}
+                            type="button"
+                            onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)}
+                            style={{
+                              all: 'unset', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
+                              gap: 10, fontSize: 12.5, padding: '5px 8px', borderRadius: 5,
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.kabkot}</span>
+                            <span className="num" style={{ fontWeight: 600 }}>{fmtPct(k[metricDef.key], 1)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+
+            {/* Infrastructure summary */}
+            <SectionCard title="Infrastruktur IPAL & IPLT" subtitle={`Aset air limbah domestik tercatat di ${selectedProv.provinsi}`}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+                <MetricCard label="Unit IPAL" value={ipalHere.length} unit="" sub={`${aGood} berfungsi · ${ipalHere.length - aGood} tidak`} />
+                <MetricCard label="Unit IPLT" value={ipltHere.length} unit="" sub={`${iGood} berfungsi · ${ipltHere.length - iGood} tidak`} />
+                <MetricCard label="Kab/Kota tanpa IPLT" value={kabsNoIPLT.length} unit="" sub={`dari ${kabsInProv.length} kab/kota`} tone={kabsNoIPLT.length ? 'warn' : 'ok'} />
+                <MetricCard label="Unit tidak berfungsi" value={brokenUnits.length} unit="" sub="IPAL + IPLT" tone={brokenUnits.length ? 'bad' : 'ok'} />
+              </div>
+            </SectionCard>
+
+            {/* Structured alerts */}
+            <SectionCard title="Isu Prioritas" subtitle="Hal yang memerlukan tindak lanjut perencanaan">
+              {!hasAlerts && (
+                <EmptyState compact icon="check" title="Tidak ada isu prioritas terdeteksi" text="Seluruh indikator provinsi ini berada dalam ambang wajar." />
+              )}
+              {hasAlerts && (
+                <div style={{ display: 'grid', gap: 14 }}>
+                  {kabsNoIPLT.length > 0 && (
+                    <AlertGroup
+                      tone="bad" title={`${kabsNoIPLT.length} kab/kota belum memiliki IPLT`}
+                      items={kabsNoIPLT.map((k) => ({ id: k.kode || k.kabkot, label: k.kabkot }))}
+                    />
+                  )}
+                  {brokenUnits.length > 0 && (
+                    <AlertGroup
+                      tone="warn" title={`${brokenUnits.length} unit IPAL/IPLT tidak berfungsi`}
+                      items={brokenUnits.map((u) => ({ id: u.id, label: `${u.type} · ${u.nama}${u.kabkot ? ` (${u.kabkot})` : ''}` }))}
+                    />
+                  )}
+                  {babsHigh.length > 0 && (
+                    <AlertGroup
+                      tone="bad" title={`${babsHigh.length} kab/kota dengan BABS terbuka > 10%`}
+                      items={babsHigh.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.babs2025, 1)}` }))}
+                    />
+                  )}
+                  {amanLow.length > 0 && (
+                    <AlertGroup
+                      tone="warn" title={`${amanLow.length} kab/kota dengan akses aman < 5%`}
+                      items={amanLow.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.aman2025, 1)}` }))}
+                    />
+                  )}
+                </div>
+              )}
+            </SectionCard>
+
+            {/* Table */}
+            <SectionCard
+              title={`Data Kab/Kota · ${selectedProv.provinsi}`}
+              pad={false}
+              actions={(
+                <button className="btn btn-accent btn-sm" onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}`)}>
+                  Profil kab/kota
+                  <Icon name="arrowRight" size={13} />
+                </button>
+              )}
+            >
+              <div className="table-scroll" style={{ maxHeight: 480 }}>
+                <table className="data-table" style={{ minWidth: 520 }}>
+                  <thead>
+                    <tr>
+                      {[['kabkot', 'Kabupaten/Kota', false], ['aman', 'Akses Aman', true], ['layak', 'Akses Layak', true], ['babs', 'BABS Terbuka', true]].map(([k, l, num]) => (
+                        <th
+                          key={k}
+                          className={num ? 'td-num' : undefined}
+                          aria-sort={sortBy === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+                        >
+                          <button
+                            onClick={() => onSort(k)}
+                            style={{
+                              all: 'unset', cursor: 'pointer', font: 'inherit', color: 'inherit',
+                              textTransform: 'inherit', letterSpacing: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
+                            }}
+                          >
+                            {l}
+                            {sortBy === k && <Icon name={sortDir === 'asc' ? 'arrowUp' : 'arrowDown'} size={11} />}
+                          </button>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map((k) => {
+                      const babsHi = (k.babs2025 ?? 0) > 10;
+                      return (
+                        <tr key={k.kode || k.kabkot} onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)} style={{ cursor: 'pointer' }}>
+                          <td style={{ fontWeight: 500 }}>{k.kabkot}</td>
+                          <td className="td-num">{fmtPct(k.aman2025)}</td>
+                          <td className="td-num">{fmtPct(k.layak2025)}</td>
+                          <td className="td-num" style={babsHi ? { color: 'var(--bad)', fontWeight: 600 } : undefined}>{fmtPct(k.babs2025)}</td>
+                        </tr>
+                      );
+                    })}
+                    {tableRows.length === 0 && (
+                      <tr><td colSpan={4}><EmptyState compact icon="info" title="Tidak ada kab/kota" text='Data sheet "Akses Kabkot" tidak memiliki baris untuk provinsi ini.' /></td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
           </div>
-        </SectionCard>
+        )}
       </div>
     </div>
   );

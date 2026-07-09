@@ -223,7 +223,7 @@ html, body {
 }
 
 /* ═══ Layout ═══ */
-.page-wrap { max-width: 1320px; margin: 0 auto; }
+.page-wrap { max-width: 1100px; margin: 0 auto; }
 .page-pad { padding-left: 24px; padding-right: 24px; }
 
 @media (max-width: 768px) {

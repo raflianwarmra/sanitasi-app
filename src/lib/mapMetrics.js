@@ -9,6 +9,6 @@ const RAMP_ROSE = ['#FBECEA', '#F3C9C2', '#E79C90', '#D6685A', '#B93A2C'];
 
 export const MAP_METRICS = {
   aman: { key: 'aman2025', label: 'Akses Aman', thresholds: [5, 10, 20, 30], ramp: RAMP_TEAL, higherBetter: true },
-  layak: { key: 'layak2025', label: 'Akses Layak', thresholds: [60, 70, 80, 90], ramp: RAMP_BLUE, higherBetter: true },
+  layak: { key: 'layak2025', label: 'Akses Layak', thresholds: [20, 50, 80, 90], ramp: RAMP_BLUE, higherBetter: true },
   babs: { key: 'babs2025', label: 'BABS Terbuka', thresholds: [1, 5, 10, 20], ramp: RAMP_ROSE, higherBetter: false },
 };

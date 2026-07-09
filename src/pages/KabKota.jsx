@@ -16,6 +16,7 @@ import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter } from '../lib/cluster';
+import { islandOf } from '../lib/islandTheme';
 
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
 
@@ -300,6 +301,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   }, [logs, selectedKab]);
 
   const letter = kel ? clusterLetter(kel.clusterTataKelola) : null;
+  const island = selectedKab ? islandOf(selectedKab.kode) : null;
   const clusterInfo = letter ? `${letter} — ${CLUSTER_LABELS[letter]}` : null;
 
   // ── Exports ──
@@ -385,7 +387,8 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       />
 
       <PageHeader
-        kicker={`Profil Kabupaten/Kota · ${selectedKab?.provinsi ?? 'Nasional'}`}
+        island={island}
+        kicker={`Profil Kabupaten/Kota · ${selectedKab?.provinsi ?? 'Nasional'}${island ? ` · ${island.name}` : ''}`}
         title={selectedKab?.kabkot ?? 'Pilih Kab/Kota'}
         titleExtra={letter && (
           <span className="chip" style={{ background: CLUSTER_COLORS[letter], borderColor: 'transparent', color: 'white', fontWeight: 600 }}>

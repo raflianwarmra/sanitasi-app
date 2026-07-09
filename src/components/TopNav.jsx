@@ -27,7 +27,7 @@ export default function TopNav({ active, onNavigate }) {
           {/* Logo */}
           <button
             onClick={() => onNavigate('/')}
-            aria-label="Sanitasi.id — Beranda"
+            aria-label="Dashboard Data Sanitasi — Beranda"
             style={{
               background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 9,
@@ -41,7 +41,7 @@ export default function TopNav({ active, onNavigate }) {
             }}>
               <Icon name="droplet" size={15} strokeWidth={2} />
             </span>
-            <span>Sanitasi<span style={{ color: 'var(--accent)' }}>.id</span></span>
+            <span>Dashboard <span style={{ color: 'var(--accent)' }}>Data Sanitasi</span></span>
           </button>
 
           {/* Desktop nav */}
@@ -124,7 +124,7 @@ export default function TopNav({ active, onNavigate }) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span style={{ fontWeight: 700, fontSize: 15 }}>
-                Sanitasi<span style={{ color: 'var(--accent)' }}>.id</span>
+                Dashboard <span style={{ color: 'var(--accent)' }}>Data Sanitasi</span>
               </span>
               <button
                 onClick={() => setMenuOpen(false)}
