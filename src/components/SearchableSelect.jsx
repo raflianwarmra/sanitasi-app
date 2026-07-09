@@ -9,6 +9,7 @@ export default function SearchableSelect({
   style,
   className,
   disabled = false,
+  sortOptions = true,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -20,8 +21,8 @@ export default function SearchableSelect({
     [options]
   );
   const sorted = useMemo(
-    () => [...normalized].sort((a, b) => a.label.localeCompare(b.label, 'id')),
-    [normalized]
+    () => (sortOptions ? [...normalized].sort((a, b) => a.label.localeCompare(b.label, 'id')) : normalized),
+    [normalized, sortOptions]
   );
   const filtered = useMemo(() => {
     if (!query.trim()) return sorted;

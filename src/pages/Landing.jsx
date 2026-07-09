@@ -47,7 +47,7 @@ export default function Landing({ onNavigate }) {
       {/* Intro */}
       <div style={{ background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
         <div className="page-wrap page-pad" style={{ paddingTop: 48, paddingBottom: 36 }}>
-          <div className="section-label" style={{ marginBottom: 10 }}>Dashboard Sanitasi Nasional · Data 2025</div>
+          <div className="section-label" style={{ marginBottom: 10 }}>Dashboard Data Sanitasi · Tim Sanitasi Bappenas · Data 2025</div>
           <h1 className="title-mobile" style={{
             fontSize: 34, lineHeight: 1.15, letterSpacing: '-0.02em',
             fontWeight: 700, margin: '0 0 14px', maxWidth: 640,
@@ -142,8 +142,8 @@ export default function Landing({ onNavigate }) {
           display: 'flex', gap: '6px 16px', flexWrap: 'wrap',
           fontSize: 11.5, color: 'var(--ink-3)',
         }}>
+          <span>Properti Tim Sanitasi Bappenas · Dibuat oleh Muh. Rafli Anwar — Perencana Ahli Pertama</span>
           <span>Data dimuat langsung dari Google Sheets dan diperbarui berkala.</span>
-          <span>Catatan lapangan tersimpan pada sheet “Log Catatan Infras”.</span>
         </div>
       </div>
     </div>
