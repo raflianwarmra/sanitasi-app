@@ -27,7 +27,7 @@ export default function Breadcrumb({ path, onNavigate }) {
                   {label}
                 </button>
               ) : (
-                <span aria-current={isLast ? 'page' : undefined} style={{ fontWeight: isLast ? 600 : 400, color: isLast ? 'var(--ink)' : undefined }}>
+                <span aria-current={isLast ? 'page' : undefined} style={{ fontWeight: isLast ? 600 : 400, color: isLast ? 'var(--island-accent, var(--ink))' : undefined }}>
                   {label}
                 </span>
               )}

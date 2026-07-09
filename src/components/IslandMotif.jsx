@@ -66,7 +66,7 @@ function tile(motif, c) {
   }
 }
 
-export default function IslandMotif({ island, width = 300, opacity = 0.35 }) {
+export default function IslandMotif({ island, width = 380, opacity = 0.55 }) {
   if (!island) return null;
   const pid = `motif-${island.id}`;
   return (

@@ -10,23 +10,9 @@ import MetricCard from './MetricCard';
 import IndicatorCard from './IndicatorCard';
 import ChartContainer, { ChartLegend } from './ChartContainer';
 import ProvinceKabkotMap from './ProvinceKabkotMap';
+import { ladderColor } from '../lib/ladder';
 import EmptyState from './EmptyState';
 import Icon from './Icon';
-
-const LADDER_COLOR_RULES = [
-  { test: /layak sendiri/, color: () => cssVar('--viz-layak') },
-  { test: /layak bersama/, color: () => '#97AFDE' },
-  { test: /belum layak/, color: () => cssVar('--viz-muted') },
-  { test: /babs tertutup/, color: () => cssVar('--warn') },
-  { test: /babs/, color: () => cssVar('--viz-babs') },
-  { test: /aman/, color: () => cssVar('--viz-aman') },
-];
-
-function ladderColor(label) {
-  const l = label.toLowerCase();
-  const rule = LADDER_COLOR_RULES.find((r) => r.test.test(l));
-  return rule ? rule.color() : cssVar('--viz-muted');
-}
 
 function natChartOpts() {
   return {

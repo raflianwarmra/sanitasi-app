@@ -7,7 +7,8 @@
    Deep navy ink on soft blue-tinted paper, teal accent.
    Status colors carry meaning only: ok=green, warn=amber, bad=rose/BABS. */
 :root {
-  --bg: oklch(97.5% 0.006 230);
+  --bg-base: oklch(97.5% 0.006 230);
+  --bg: var(--bg-base);
   --paper: oklch(99.4% 0.003 230);
   --paper-2: oklch(95.8% 0.008 230);
   --ink: oklch(25% 0.032 245);
@@ -41,7 +42,7 @@
 }
 
 [data-theme="dark"] {
-  --bg: oklch(17% 0.016 240);
+  --bg-base: oklch(17% 0.016 240);
   --paper: oklch(21% 0.018 240);
   --paper-2: oklch(25% 0.02 240);
   --ink: oklch(93% 0.008 235);
@@ -72,6 +73,20 @@
 }
 
 [data-theme="dark"] img.leaflet-tile { filter: brightness(0.8) invert(1) hue-rotate(190deg) saturate(0.75); }
+
+
+/* ═══ Island theming (chrome only) ═══
+   Set via data-island on <html>; tints chrome + page background, never the
+   data-viz tokens. Accent values mirror src/lib/islandTheme.js. */
+html[data-island] { --bg: color-mix(in oklch, var(--island-accent) 6%, var(--bg-base)); }
+html[data-island="sumatera"]   { --island-accent: oklch(52% 0.115 75); }
+html[data-island="jawa"]       { --island-accent: oklch(45% 0.09 285); }
+html[data-island="balinusra"]  { --island-accent: oklch(54% 0.125 45); }
+html[data-island="kalimantan"] { --island-accent: oklch(48% 0.095 150); }
+html[data-island="sulawesi"]   { --island-accent: oklch(51% 0.1 195); }
+html[data-island="maluku"]     { --island-accent: oklch(52% 0.135 30); }
+html[data-island="papua"]      { --island-accent: oklch(47% 0.09 45); }
+html, body { transition: background-color 0.25s ease-out; }
 
 * { box-sizing: border-box; }
 

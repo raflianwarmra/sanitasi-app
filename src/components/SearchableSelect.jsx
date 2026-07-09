@@ -75,6 +75,7 @@ export default function SearchableSelect({
 
       {open && (
         <div
+          className="fade-in"
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
