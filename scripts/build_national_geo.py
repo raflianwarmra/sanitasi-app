@@ -31,7 +31,23 @@ def norm(s):
     return s
 
 
-def index_source(feats, kode_key, name_key, prov_key, strip_dots=False):
+# Known alternate spellings of the same real district (not fabricated —
+# reconciles source vs BPS naming). Applied only in loose comparison.
+_ALIAS = {'pasir': 'paser', 'tanahtidung': 'tanatidung'}
+
+
+def loose(s):
+    """Looser normalization for the kode-match guard only: also drops the
+    kota/kodya/kotamadya prefix and maps known spelling variants. Used only
+    when a kode already pins the region, so the kota-vs-kabupaten
+    distinction (kept by norm()) is not needed here."""
+    s = (s or '').lower()
+    s = re.sub(r'\b(kota\s?madya|kotamadya|kodya|kota)\b', '', s)
+    s = norm(s)
+    return _ALIAS.get(s, s)
+
+
+def index_source(feats, kode_key, name_key, prov_key, strip_dots=False, trust_kode=False):
     by_kode, by_pair, by_name = {}, {}, defaultdict(list)
     for ft in feats:
         if not ft.get('geometry'):
@@ -46,21 +62,25 @@ def index_source(feats, kode_key, name_key, prov_key, strip_dots=False):
         if nm:
             by_pair.setdefault((pr, nm), ft)
             by_name[nm].append(ft)
-    return by_kode, by_pair, by_name, name_key, prov_key
+    return by_kode, by_pair, by_name, name_key, prov_key, trust_kode
 
 
 def resolve(row_kode, prov, kab, sources):
-    """Guarded matching: a kode hit counts only if the feature's own
-    province or kab name agrees — kemendagri vs BPS numbering collides in
-    the 9xxx (Papua) range, so bare kode equality is not trustworthy."""
+    """Match a sheet row (BPS kode + names) to a source feature.
+
+    A source's kode is trusted directly only if it is BPS-coded
+    (azunzios CC_2). marifauzan's KDPKAB is kemendagri-numbered and
+    collides with BPS (e.g. Sulsel Bone=73.08-kemendagri vs Maros=7308-BPS),
+    so its kode counts only when the feature's own kab name also agrees
+    under loose comparison. Name-based paths use strict norm() to preserve
+    the kota-vs-kabupaten distinction (e.g. Kota Sorong vs Kab Sorong)."""
     key = (norm(prov), norm(kab))
-    for by_kode, by_pair, by_name, name_key, prov_key in sources:
+    lkab = loose(kab)
+    for by_kode, by_pair, by_name, name_key, prov_key, trust_kode in sources:
         ft = by_kode.get(row_kode)
         if ft is not None:
-            p = ft['properties']
-            if norm(p.get(prov_key)) == key[0] or norm(p.get(name_key)) == key[1]:
+            if trust_kode or loose(ft['properties'].get(name_key)) == lkab:
                 return ft
-            # kode collision across coding systems: reject, fall through
         if key in by_pair:
             return by_pair[key]
         if len(by_name.get(key[1], [])) == 1:
@@ -78,8 +98,12 @@ def main(mari_path, azun_path, csv_path):
     mari = json.load(open(mari_path))['features']
     azun = json.load(open(azun_path))['features']
     sources = [
+        # marifauzan first: lighter geometry, and its kemendagri KDPKAB is
+        # name-guarded so kode swaps (Maros/Bone) are rejected and resolved
+        # by name. azunzios (trusted BPS CC_2) is the fallback for the few
+        # names marifauzan spells differently or lacks.
         index_source(mari, 'KDPKAB', 'WADMKK', 'WADMPR', strip_dots=True),
-        index_source(azun, 'CC_2', 'NAME_2', 'NAME_1'),
+        index_source(azun, 'CC_2', 'NAME_2', 'NAME_1', trust_kode=True),
     ]
 
     rows = list(csv.DictReader(open(csv_path)))
