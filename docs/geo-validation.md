@@ -47,22 +47,23 @@ National file: 38 provinces (matches sheet prefixes).
 
 ## Problems
 
-- prov-13.json: centroid outlier 1309 (Pasaman, 1.8deg)
+- prov-13.json: centroid outlier 1301 (Kepulauan Mentawai, 1.8deg)
 - prov-71.json: centroid outlier 7104 (Kepulauan Talaud, 3.3deg)
 
-## Outlier verification
+## Name-truth swap audit (v2)
 
-Both flagged centroid outliers were provenance-checked against the source
-features and confirmed as TRUE GEOGRAPHY, not misassignments:
+After the initial guard, a deeper defect surfaced: `marifauzan`'s `KDPKAB`
+is **kemendagri**-numbered, not BPS. In Sulawesi Selatan this ordered
+districts differently from BPS — kemendagri `73.08` (Bone) collided with BPS
+`7308` (Maros), so the map showed **Bone's shape labeled "Maros"** and vice
+versa. The province-level guard did not catch it (both are in Sulsel).
 
-- `1309 Pasaman`: name-verified match in Sumatera Barat from both sources
-  (kemendagri numbering is offset — 13.08 vs BPS 1309 — which is exactly why
-  bare kode matching is guarded); the province centroid is pulled south by
-  Kepulauan Mentawai, making northern Pasaman read as distant.
-- `7104 Kepulauan Talaud`: name- and kode-verified in Sulawesi Utara from
-  both sources; the island chain genuinely lies ~3° north of the mainland.
+**Fix:** a `marifauzan` kode match is now accepted only when the feature's
+own kab NAME also agrees (loose comparison); `azunzios` `CC_2` (true BPS) is
+trusted directly. `scripts/verify_geo_names.py` cross-checks every generated
+shape's centroid against its name-matched source location.
 
-**Verdict: PASSED.** 514/514 coverage, zero duplicates, zero foreign or
-missing kode, national file matches all 38 province prefixes. The guarded
-matcher corrected Papua Barat (prov-91) and Papua Barat Daya (prov-92),
-which had shapes cross-assigned via kemendagri/BPS kode collisions.
+**Result:** 514/514, Maros→(119.7,-5.0) and Bone→(120.1,-4.7) now correct;
+the sole remaining flag (Kab. vs Kota Jayapura) is a verifier artifact from
+loose "kota" collapsing — both shapes confirmed correct by point count and
+centroid. All other 500 checkable shapes sit at their named locations.
