@@ -15,6 +15,7 @@ import IndicatorCard from '../components/IndicatorCard';
 import ProvinceKabkotMap from '../components/ProvinceKabkotMap';
 import { MAP_METRICS } from '../lib/mapMetrics';
 import NationalView from '../components/NationalView';
+import PriorityIssueCards from '../components/PriorityIssueCards';
 import LadderChart from '../components/LadderChart';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
@@ -253,7 +254,6 @@ export default function Provinsi({ onNavigate }) {
   const babs25 = selectedProv?.babs.y2025;
   const iGood = ipltHere.filter((x) => x.isFunctioning).length;
   const aGood = ipalHere.filter((x) => x.isFunctioning).length;
-  const hasAlerts = kabsNoIPLT.length || brokenUnits.length || babsHigh.length || amanLow.length;
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
@@ -267,7 +267,7 @@ export default function Provinsi({ onNavigate }) {
       />
 
       <PageHeader
-        kicker={isNational ? 'Profil Sanitasi Nasional' : `Profil Sanitasi Provinsi · ${island?.name ?? ''}`}
+        kicker={isNational ? 'Profil Sanitasi Nasional' : 'Profil Sanitasi Provinsi'}
         title={isNational ? 'Indonesia' : selectedProv.provinsi}
         island={island}
         meta={isNational
@@ -445,40 +445,28 @@ export default function Provinsi({ onNavigate }) {
               </div>
             </SectionCard>
 
-            {/* Structured alerts */}
-            <SectionCard title="Isu Prioritas" subtitle="Hal yang memerlukan tindak lanjut perencanaan">
-              {!hasAlerts && (
-                <EmptyState compact icon="check" title="Tidak ada isu prioritas terdeteksi" text="Seluruh indikator provinsi ini berada dalam ambang wajar." />
+            {/* Priority issue cards */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>Isu Prioritas</h2>
+                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Klik kab/kota untuk membuka profil</span>
+              </div>
+              <PriorityIssueCards
+                kabsNoIPLT={kabsNoIPLT}
+                babsHigh={babsHigh}
+                amanLow={amanLow}
+                onOpenKab={(k) => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)}
+              />
+              {brokenUnits.length > 0 && (
+                <SectionCard style={{ marginTop: 16 }} title={`${brokenUnits.length} unit IPAL/IPLT tidak berfungsi`} subtitle="Perlu tindak lanjut operasional">
+                  <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflowY: 'auto' }}>
+                    {brokenUnits.map((u) => (
+                      <span key={u.id} className="chip chip-warn" style={{ fontSize: 10.5 }}>{u.type} · {u.nama}{u.kabkot ? ` (${u.kabkot})` : ''}</span>
+                    ))}
+                  </div>
+                </SectionCard>
               )}
-              {hasAlerts && (
-                <div style={{ display: 'grid', gap: 14 }}>
-                  {kabsNoIPLT.length > 0 && (
-                    <AlertGroup
-                      tone="bad" title={`${kabsNoIPLT.length} kab/kota belum memiliki IPLT`}
-                      items={kabsNoIPLT.map((k) => ({ id: k.kode || k.kabkot, label: k.kabkot }))}
-                    />
-                  )}
-                  {brokenUnits.length > 0 && (
-                    <AlertGroup
-                      tone="warn" title={`${brokenUnits.length} unit IPAL/IPLT tidak berfungsi`}
-                      items={brokenUnits.map((u) => ({ id: u.id, label: `${u.type} · ${u.nama}${u.kabkot ? ` (${u.kabkot})` : ''}` }))}
-                    />
-                  )}
-                  {babsHigh.length > 0 && (
-                    <AlertGroup
-                      tone="bad" title={`${babsHigh.length} kab/kota dengan BABS terbuka > 10%`}
-                      items={babsHigh.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.babs2025, 1)}` }))}
-                    />
-                  )}
-                  {amanLow.length > 0 && (
-                    <AlertGroup
-                      tone="warn" title={`${amanLow.length} kab/kota dengan akses aman < 5%`}
-                      items={amanLow.map((k) => ({ id: k.kode || k.kabkot, label: `${k.kabkot} · ${fmtPct(k.aman2025, 1)}` }))}
-                    />
-                  )}
-                </div>
-              )}
-            </SectionCard>
+            </div>
 
             {/* Table */}
             <SectionCard
@@ -541,20 +529,3 @@ export default function Provinsi({ onNavigate }) {
   );
 }
 
-function AlertGroup({ tone, title, items }) {
-  const chipClass = tone === 'bad' ? 'chip-bad' : 'chip-warn';
-  const color = tone === 'bad' ? 'var(--bad)' : 'var(--warn)';
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-        <Icon name="alert" size={14} style={{ color }} />
-        {title}
-      </div>
-      <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflowY: 'auto' }}>
-        {items.map((it) => (
-          <span key={it.id} className={`chip ${chipClass}`} style={{ fontSize: 10.5 }}>{it.label}</span>
-        ))}
-      </div>
-    </div>
-  );
-}

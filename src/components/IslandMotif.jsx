@@ -66,7 +66,7 @@ function tile(motif, c) {
   }
 }
 
-export default function IslandMotif({ island, width = 380, opacity = 0.55 }) {
+export default function IslandMotif({ island, width = 380, opacity = 0.55, color }) {
   if (!island) return null;
   const pid = `motif-${island.id}`;
   return (
@@ -82,7 +82,7 @@ export default function IslandMotif({ island, width = 380, opacity = 0.55 }) {
     >
       <defs>
         <pattern id={pid} width={TILE} height={TILE} patternUnits="userSpaceOnUse">
-          {tile(island.motif, island.accent)}
+          {tile(island.motif, color ?? island.accent)}
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill={`url(#${pid})`} />

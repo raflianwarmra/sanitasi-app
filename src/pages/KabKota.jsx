@@ -9,6 +9,7 @@ import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
 import MetricCard from '../components/MetricCard';
 import LadderChart from '../components/LadderChart';
+import InfraDetailPanel from '../components/InfraDetailPanel';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
@@ -36,7 +37,7 @@ function AksesCard({ kab, theme, ladderRungs }) {
 }
 
 // ── Infrastruktur card ─────────────────────────────────────────
-function InfrastrukturCard({ kab, infraHere, logs }) {
+function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
   const total = infraHere.length;
   const functioning = infraHere.filter((i) => i.isFunctioning).length;
   const byType = infraHere.reduce((acc, i) => {
@@ -78,8 +79,15 @@ function InfrastrukturCard({ kab, infraHere, logs }) {
                   const util = infra.kapasitas && infra.kapasitasTerpakai ? (infra.kapasitasTerpakai / infra.kapasitas) * 100 : null;
                   const n = logs.filter((l) => l.infrastruktur && l.infrastruktur.toLowerCase() === infra.nama.toLowerCase()).length;
                   return (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 500 }}>{infra.nama}</td>
+                    <tr
+                      key={i}
+                      tabIndex={0}
+                      onClick={() => onOpenInfra(infra)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenInfra(infra); } }}
+                      style={{ cursor: 'pointer' }}
+                      aria-label={`Buka detail ${infra.nama}`}
+                    >
+                      <td style={{ fontWeight: 600, color: 'var(--accent)' }}>{infra.nama}</td>
                       <td className="td-num">{infra.kapasitas ?? '—'}</td>
                       <td className="td-num">{util != null ? fmtPct(util, 1) : '—'}</td>
                       <td>{infra.tahunBangun || '—'}</td>
@@ -222,11 +230,19 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const { data: kelembagaanData } = useKelembagaan();
   const { data: ipalData } = useIPAL();
   const { data: ipltData } = useIPLT();
-  const { data: logs } = useLog();
+  const { data: logs, reload: reloadLogs } = useLog();
   const { data: ladderKab } = useLadderKabkot();
   const { theme } = useTheme();
   const [filterProv, setFilterProv] = useState(initialProvinsi ?? '');
   const [selected, setSelected] = useState(null);
+  const [infraDetail, setInfraDetail] = useState(null);
+
+  useEffect(() => {
+    if (!infraDetail) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setInfraDetail(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [infraDetail]);
 
   const provinsiList = useMemo(() => {
     const set = new Set(kabkotData.map((k) => k.provinsi).filter(Boolean));
@@ -363,7 +379,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
 
       <PageHeader
         island={island}
-        kicker={`Profil Kabupaten/Kota · ${selectedKab?.provinsi ?? 'Nasional'}${island ? ` · ${island.name}` : ''}`}
+        kicker={`Profil Kabupaten/Kota · ${selectedKab?.provinsi ?? 'Nasional'}`}
         title={selectedKab?.kabkot ?? 'Pilih Kab/Kota'}
         titleExtra={letter && (
           <span className="chip" style={{ background: CLUSTER_COLORS[letter], borderColor: 'transparent', color: 'white', fontWeight: 600 }}>
@@ -395,7 +411,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       {selectedKab ? (
         <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
           <AksesCard kab={selectedKab} theme={theme} ladderRungs={kabLadder} />
-          <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} />
+          <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={setInfraDetail} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
         </div>
       ) : (
@@ -404,6 +420,31 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
           title="Pilih kabupaten/kota"
           text="Gunakan dropdown provinsi dan kab/kota di atas untuk membuka profil."
         />
+      )}
+
+      {infraDetail && (
+        <div
+          role="dialog" aria-modal="true" aria-label={`Detail ${infraDetail.nama}`}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60,
+            background: 'oklch(15% 0.02 240 / 0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+          onClick={() => setInfraDetail(null)}
+        >
+          <div
+            className="card fade-in"
+            style={{ padding: 0, width: 'min(430px, 100%)', maxHeight: '86vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <InfraDetailPanel
+              infra={infraDetail}
+              logs={logs}
+              onClose={() => setInfraDetail(null)}
+              reloadLogs={reloadLogs}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
