@@ -2,6 +2,23 @@
 // risk scoring, and kab/kota coverage gaps. Kept out of the component so the
 // same numbers can feed exports later.
 
+export function statusOf(infra) {
+  if (!infra.statusText && infra.isFunctioning == null) return { color: 'var(--ink-3)', label: 'Tidak diketahui', ok: null };
+  return infra.isFunctioning
+    ? { color: 'var(--ok)', label: 'Beroperasi', ok: true }
+    : { color: 'var(--bad)', label: 'Tidak berfungsi', ok: false };
+}
+
+export function logsFor(logs, infra) {
+  const name = (infra.nama || '').toLowerCase();
+  const kk = (infra.kabkot || '').toLowerCase();
+  return logs.filter((l) => {
+    const lName = (l.infrastruktur || '').toLowerCase();
+    const lKk = (l.kabkot || '').toLowerCase();
+    return lName && lName === name && (!kk || !lKk || lKk === kk);
+  });
+}
+
 export function utilizationPct(infra) {
   if (!infra.kapasitas || infra.kapasitasTerpakai == null) return null;
   return (infra.kapasitasTerpakai / infra.kapasitas) * 100;

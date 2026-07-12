@@ -65,19 +65,25 @@ def index_source(feats, kode_key, name_key, prov_key, strip_dots=False):
         if nm:
             by_pair.setdefault((pr, nm), ft)
             by_name[nm].append(ft)
-    return by_kode, by_pair, by_name
+    return by_kode, by_pair, by_name, name_key, prov_key
 
 
 def resolve(row_kode, prov, kab, sources):
+    """Guarded matching: a kode hit counts only if the feature's own
+    province or kab name agrees — kemendagri vs BPS numbering collides in
+    the 9xxx (Papua) range, so bare kode equality is not trustworthy."""
     key = (norm(prov), norm(kab))
-    nm = key[1]
-    for by_kode, by_pair, by_name in sources:
-        if row_kode in by_kode:
-            return by_kode[row_kode]
+    for by_kode, by_pair, by_name, name_key, prov_key in sources:
+        ft = by_kode.get(row_kode)
+        if ft is not None:
+            p = ft['properties']
+            if norm(p.get(prov_key)) == key[0] or norm(p.get(name_key)) == key[1]:
+                return ft
+            # kode collision across coding systems: reject, fall through
         if key in by_pair:
             return by_pair[key]
-        if len(by_name.get(nm, [])) == 1:
-            return by_name[nm][0]
+        if len(by_name.get(key[1], [])) == 1:
+            return by_name[key[1]][0]
     return None
 
 
