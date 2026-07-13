@@ -1,36 +1,36 @@
-// Page identity band: kicker, title, meta, and right-aligned controls.
-// Island theming: a strong accent wash + motif corner in the chrome only —
-// data colors elsewhere (charts/map/tables) are never affected.
+// Page identity band: kicker, title, meta, right-aligned controls, and an
+// optional hero extension (children — e.g. the KPI card row) sharing the
+// same island-themed background.
 //
-// IMPORTANT: the decorative layer (wash + motif) is clipped inside its OWN
-// absolutely-positioned wrapper (inset:0), never on the header itself.
-// Clipping the header would also clip absolutely-positioned children such
-// as the province dropdown, cutting its option list off mid-render.
+// The island treatment is the container's OWN background (color + layered
+// CSS gradients + an SVG-tile background-image) — never an absolutely
+// positioned overlay, so there is no clipping/stacking/interaction risk.
+// It softens toward the bottom into the page's subtle island tint
+// (var(--bg)) rather than plain white.
 
-import IslandMotif from './IslandMotif';
+import { motifTileUri } from '../lib/islandTheme';
 
-export default function PageHeader({ kicker, title, titleExtra, meta, controls, island }) {
+export default function PageHeader({ kicker, title, titleExtra, meta, controls, island, children }) {
+  const heroStyle = island
+    ? {
+        backgroundColor: `color-mix(in oklch, ${island.accent} 15%, var(--paper))`,
+        backgroundImage: [
+          // vertical soften: fade into the page's tinted background
+          'linear-gradient(180deg, transparent 0%, transparent 58%, var(--bg) 100%)',
+          // left readability wash: text zone stays calm, motif shows right
+          `linear-gradient(90deg, color-mix(in oklch, ${island.accent} 7%, var(--paper)) 0%, color-mix(in oklch, ${island.accent} 7%, var(--paper)) 40%, transparent 78%)`,
+          motifTileUri(island),
+        ].join(', '),
+        transition: 'background-color 0.25s ease-out',
+      }
+    : { background: 'var(--paper)' };
+
   return (
-    <div style={{ position: 'relative', background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
-      {island && (
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: `linear-gradient(90deg, color-mix(in oklch, ${island.accent} 12%, var(--paper)), var(--paper) 55%)`,
-            transition: 'background 0.25s ease-out',
-          }} />
-          <div style={{
-            position: 'absolute', top: 0, bottom: 0, right: 0, width: 'min(340px, 42%)',
-            background: `linear-gradient(90deg, transparent, ${island.accent} 45%)`,
-            transition: 'background 0.25s ease-out',
-          }} />
-          <IslandMotif island={island} color="oklch(98% 0.005 230)" opacity={0.32} width={300} />
-        </div>
-      )}
+    <div style={{ ...heroStyle, borderBottom: '1px solid var(--line)' }}>
       <div className="page-wrap page-pad" style={{
-        paddingTop: 20, paddingBottom: 20,
+        paddingTop: 20, paddingBottom: children ? 12 : 20,
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
-        flexWrap: 'wrap', gap: 14, position: 'relative',
+        flexWrap: 'wrap', gap: 14,
       }}>
         <div style={{ minWidth: 0, flex: '1 1 280px' }}>
           {kicker && (
@@ -67,6 +67,11 @@ export default function PageHeader({ kicker, title, titleExtra, meta, controls, 
           </div>
         )}
       </div>
+      {children && (
+        <div className="page-wrap page-pad" style={{ paddingBottom: 22 }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }

@@ -277,7 +277,7 @@ export default function Provinsi({ onNavigate }) {
         controls={(
           <>
             <SearchableSelect
-              style={{ width: 230 }}
+              style={{ width: 230, maxWidth: '100%' }}
               value={selectedKode}
               onChange={setSelectedKode}
               options={selectOptions}
@@ -287,7 +287,78 @@ export default function Provinsi({ onNavigate }) {
             <ExportButtons onCsv={handleCsv} onPptx={handlePptx} />
           </>
         )}
-      />
+      >
+        {/* Indicator trend cards (hero extension) */}
+        {!isNational && selectedProv && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            <IndicatorCard
+              title="Akses Layak (termasuk Aman)"
+              current={layak25} targetLabel="Target nasional" target={100}
+              tone="var(--viz-layak)"
+              ariaLabel={`Tren akses layak ${selectedProv.provinsi} 2022 sampai 2025`}
+              deps={[selectedProv.provinsi, theme]}
+              build={(canvas) => new Chart(canvas, {
+                type: 'bar',
+                data: {
+                  labels: YEARS,
+                  datasets: [{ data: YEARS.map((y) => selectedProv.layak[`y${y}`]), backgroundColor: cssVar('--viz-layak'), borderRadius: 3, maxBarThickness: 42 }],
+                },
+                options: baseChartOpts(),
+              })}
+            />
+            <IndicatorCard
+              title="Akses Aman"
+              current={aman25} targetLabel="Target 2029" target={selectedProv.aman.target2029}
+              note={`Target 2026: ${fmtPct(selectedProv.aman.target2026, 1)}`}
+              tone="var(--viz-aman)"
+              ariaLabel={`Tren akses aman ${selectedProv.provinsi} dengan target 2026 dan 2029`}
+              deps={[selectedProv.provinsi, theme]}
+              build={(canvas) => {
+                const labels = [...YEARS, 'T-2026', 'T-2029'];
+                const values = [...YEARS.map((y) => selectedProv.aman[`y${y}`]), selectedProv.aman.target2026, selectedProv.aman.target2029];
+                const c = cssVar('--viz-aman');
+                return new Chart(canvas, {
+                  type: 'bar',
+                  data: {
+                    labels,
+                    datasets: [{
+                      data: values,
+                      backgroundColor: values.map((_, i) => (i < YEARS.length ? c : 'transparent')),
+                      borderColor: c, borderWidth: 1.5, borderRadius: 3, borderSkipped: false, maxBarThickness: 42,
+                    }],
+                  },
+                  options: baseChartOpts(),
+                });
+              }}
+            />
+            <IndicatorCard
+              title="BABS di Tempat Terbuka"
+              current={babs25} targetLabel="Target 2029" target={selectedProv.babs.target2029}
+              note={`Target 2026: ${fmtPct(selectedProv.babs.target2026, 1)}`}
+              tone="var(--viz-babs)"
+              ariaLabel={`Tren BABS terbuka ${selectedProv.provinsi} dengan proyeksi target`}
+              deps={[selectedProv.provinsi, theme]}
+              build={(canvas) => {
+                const labels = [...YEARS, 'T-2026', 'T-2029'];
+                const values = [...YEARS.map((y) => selectedProv.babs[`y${y}`]), selectedProv.babs.target2026, selectedProv.babs.target2029];
+                const c = cssVar('--viz-babs');
+                return new Chart(canvas, {
+                  type: 'line',
+                  data: {
+                    labels,
+                    datasets: [{
+                      data: values, borderColor: c, backgroundColor: c,
+                      tension: 0.1, pointRadius: 3.5,
+                      segment: { borderDash: (ctx) => (ctx.p0DataIndex >= YEARS.length - 1 ? [6, 6] : undefined) },
+                    }],
+                  },
+                  options: baseChartOpts(),
+                });
+              }}
+            />
+          </div>
+        )}
+      </PageHeader>
 
       <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40 }}>
         {isNational ? (
@@ -303,75 +374,6 @@ export default function Provinsi({ onNavigate }) {
           />
         ) : (
           <div style={{ display: 'grid', gap: 16 }}>
-
-            {/* Indicator trend cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-              <IndicatorCard
-                title="Akses Layak (termasuk Aman)"
-                current={layak25} targetLabel="Target nasional" target={100}
-                tone="var(--viz-layak)"
-                ariaLabel={`Tren akses layak ${selectedProv.provinsi} 2022 sampai 2025`}
-                deps={[selectedProv.provinsi, theme]}
-                build={(canvas) => new Chart(canvas, {
-                  type: 'bar',
-                  data: {
-                    labels: YEARS,
-                    datasets: [{ data: YEARS.map((y) => selectedProv.layak[`y${y}`]), backgroundColor: cssVar('--viz-layak'), borderRadius: 3, maxBarThickness: 42 }],
-                  },
-                  options: baseChartOpts(),
-                })}
-              />
-              <IndicatorCard
-                title="Akses Aman"
-                current={aman25} targetLabel="Target 2029" target={selectedProv.aman.target2029}
-                note={`Target 2026: ${fmtPct(selectedProv.aman.target2026, 1)}`}
-                tone="var(--viz-aman)"
-                ariaLabel={`Tren akses aman ${selectedProv.provinsi} dengan target 2026 dan 2029`}
-                deps={[selectedProv.provinsi, theme]}
-                build={(canvas) => {
-                  const labels = [...YEARS, 'T-2026', 'T-2029'];
-                  const values = [...YEARS.map((y) => selectedProv.aman[`y${y}`]), selectedProv.aman.target2026, selectedProv.aman.target2029];
-                  const c = cssVar('--viz-aman');
-                  return new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                      labels,
-                      datasets: [{
-                        data: values,
-                        backgroundColor: values.map((_, i) => (i < YEARS.length ? c : 'transparent')),
-                        borderColor: c, borderWidth: 1.5, borderRadius: 3, borderSkipped: false, maxBarThickness: 42,
-                      }],
-                    },
-                    options: baseChartOpts(),
-                  });
-                }}
-              />
-              <IndicatorCard
-                title="BABS di Tempat Terbuka"
-                current={babs25} targetLabel="Target 2029" target={selectedProv.babs.target2029}
-                note={`Target 2026: ${fmtPct(selectedProv.babs.target2026, 1)}`}
-                tone="var(--viz-babs)"
-                ariaLabel={`Tren BABS terbuka ${selectedProv.provinsi} dengan proyeksi target`}
-                deps={[selectedProv.provinsi, theme]}
-                build={(canvas) => {
-                  const labels = [...YEARS, 'T-2026', 'T-2029'];
-                  const values = [...YEARS.map((y) => selectedProv.babs[`y${y}`]), selectedProv.babs.target2026, selectedProv.babs.target2029];
-                  const c = cssVar('--viz-babs');
-                  return new Chart(canvas, {
-                    type: 'line',
-                    data: {
-                      labels,
-                      datasets: [{
-                        data: values, borderColor: c, backgroundColor: c,
-                        tension: 0.1, pointRadius: 3.5,
-                        segment: { borderDash: (ctx) => (ctx.p0DataIndex >= YEARS.length - 1 ? [6, 6] : undefined) },
-                      }],
-                    },
-                    options: baseChartOpts(),
-                  });
-                }}
-              />
-            </div>
 
             {/* Tangga sanitasi (real ladder data) */}
             <SectionCard

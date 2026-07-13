@@ -230,14 +230,14 @@ export default function Infrastruktur({ onNavigate }) {
             />
           </div>
           <SearchableSelect
-            style={{ width: 170 }}
+            style={{ width: 170, maxWidth: '100%' }}
             value={filterProv}
             onChange={(v) => { setFilterProv(v); setFilterKab(''); }}
             options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiOptions.map((p) => ({ value: p, label: p }))]}
             placeholder="Semua Provinsi"
           />
           <SearchableSelect
-            style={{ width: 185 }}
+            style={{ width: 185, maxWidth: '100%' }}
             value={filterKab}
             onChange={setFilterKab}
             options={[{ value: '', label: 'Semua Kab/Kota' }, ...kabkotOptions.map((k) => ({ value: k, label: k }))]}

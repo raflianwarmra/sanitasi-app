@@ -99,7 +99,7 @@ export default function SearchableSelect({
             onChange={(e) => setQuery(e.target.value)}
             style={{ margin: 6, width: 'calc(100% - 12px)', fontSize: 12 }}
           />
-          <div style={{ overflowY: 'auto', maxHeight: 220 }}>
+          <div className="select-list">
             {filtered.length === 0 ? (
               <div style={{ padding: 12, fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>{emptyText}</div>
             ) : (

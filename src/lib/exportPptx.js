@@ -6,7 +6,7 @@
 
 import { slugify, todayLabel } from './format';
 import { MAP_METRICS } from './mapMetrics';
-import { renderChoroplethPng } from './mapRaster';
+import { buildChoroplethShapes } from './mapVector';
 
 const C = {
   ink: '1B2A41',
@@ -174,10 +174,16 @@ export async function exportProvincePptx(p, kabs, infra, opts = {}) {
     s = pptx.addSlide({ masterName: 'MASTER' });
     addTitle(s, `Sebaran ${metricDef.label} ${isNational ? 'Provinsi' : 'Kabupaten/Kota'} · 2025`, p.provinsi);
 
-    const raster = await renderChoroplethPng({ provKode: String(p.kode), rows: kabs, metricDef });
-    if (raster) {
-      const w = 6.4, h = w * (raster.height / raster.width);
-      s.addImage({ data: raster.png, x: 0.5, y: 1.7, w, h: Math.min(h, 4.4) });
+    const shapes = await buildChoroplethShapes({ provKode: String(p.kode), rows: kabs, metricDef, w: 6.4, h: 4.4 });
+    if (shapes) {
+      shapes.forEach((sh) => {
+        s.addShape('custGeom', {
+          x: 0.5, y: 1.7, w: 6.4, h: 4.4,
+          points: sh.points,
+          fill: { color: sh.fill },
+          line: { color: 'FFFFFF', width: 0.75 },
+        });
+      });
       legendRow(s, 0.55, 6.35, metricDef);
     } else {
       s.addText('Peta tidak tersedia — geometri wilayah tidak dapat dimuat.', {
