@@ -21,6 +21,13 @@ import { islandOf } from '../lib/islandTheme';
 
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
 
+// Benchmark selector options (mirrors the Provinsi map metric selector).
+const BENCH_METRICS = [
+  { key: 'layak2025', label: 'Akses Layak', title: 'Akses Layak (termasuk Aman)', colorVar: '--viz-layak', natKey: 'layak', higherBetter: true },
+  { key: 'aman2025', label: 'Akses Aman', title: 'Akses Aman', colorVar: '--viz-aman', natKey: 'aman', higherBetter: true },
+  { key: 'babs2025', label: 'BABS Terbuka', title: 'BABS di Tempat Terbuka', colorVar: '--viz-babs', natKey: 'babs', higherBetter: false },
+];
+
 // ── Akses card ─────────────────────────────────────────────────
 function AksesCard({ kab, theme, ladderRungs }) {
   const babs = kab.babs2025 ?? 0;
@@ -238,6 +245,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const [filterProv, setFilterProv] = useState(initialProvinsi ?? '');
   const [selected, setSelected] = useState(null);
   const [infraDetail, setInfraDetail] = useState(null);
+  const [benchMetric, setBenchMetric] = useState('aman2025');
 
   useEffect(() => {
     if (!infraDetail) return undefined;
@@ -422,12 +430,31 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
           <SectionCard
             title="Posisi di Provinsi"
             subtitle={`Perbandingan ${peers.length} kab/kota di ${selectedKab.provinsi} · garis putus-putus: rata-rata provinsi & nasional`}
+            actions={(
+              <div className="seg" role="group" aria-label="Pilih indikator perbandingan">
+                {BENCH_METRICS.map((m) => (
+                  <button key={m.key} type="button" aria-pressed={benchMetric === m.key} onClick={() => setBenchMetric(m.key)}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
           >
-            <div style={{ display: 'grid', gap: 22 }}>
-              <BenchmarkChart title="Akses Layak (termasuk Aman)" metricKey="layak2025" colorVar="--viz-layak" rows={peers} selectedKode={selectedKab.kode} natValue={nasional?.layak?.y2025} theme={theme} />
-              <BenchmarkChart title="Akses Aman" metricKey="aman2025" colorVar="--viz-aman" rows={peers} selectedKode={selectedKab.kode} natValue={nasional?.aman?.y2025} theme={theme} />
-              <BenchmarkChart title="BABS di Tempat Terbuka" metricKey="babs2025" colorVar="--viz-babs" rows={peers} selectedKode={selectedKab.kode} natValue={nasional?.babs?.y2025} theme={theme} higherBetter={false} />
-            </div>
+            {(() => {
+              const m = BENCH_METRICS.find((x) => x.key === benchMetric);
+              return (
+                <BenchmarkChart
+                  title={m.title}
+                  metricKey={m.key}
+                  colorVar={m.colorVar}
+                  rows={peers}
+                  selectedKode={selectedKab.kode}
+                  natValue={nasional?.[m.natKey]?.y2025}
+                  theme={theme}
+                  higherBetter={m.higherBetter}
+                />
+              );
+            })()}
           </SectionCard>
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={setInfraDetail} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
