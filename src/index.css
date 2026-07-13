@@ -216,6 +216,16 @@ html, body {
 /* ═══ Leaflet ═══ */
 .leaflet-container { border-radius: 0 0 var(--radius) var(--radius); font-family: inherit; }
 
+/* Searchable-select option list: must scroll smoothly on touch and never
+   chain-scroll the page behind it. */
+.select-list {
+  overflow-y: auto;
+  max-height: 220px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 /* ═══ Scrollbar hide ═══ */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }

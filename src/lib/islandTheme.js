@@ -57,3 +57,34 @@ export function islandOf(provKode) {
   const id = PREFIX_TO_ISLAND[prefix];
   return id ? ISLANDS[id] : null;
 }
+
+// ── Motif tiles as CSS background data-URIs ──
+// Used as the hero container's actual background-image (no absolutely
+// positioned overlay), so no clipping/stacking risk. Stroke opacity is
+// baked in; color defaults to the island accent.
+const T = 36; // tile size
+const TILE_SVG = {
+  lattice: (c) => `<path d="M0 ${T / 2} L${T / 2} 0 L${T} ${T / 2} L${T / 2} ${T} Z" fill="none" stroke="${c}" stroke-width="1.4"/><circle cx="${T / 2}" cy="${T / 2}" r="2.2" fill="${c}"/>`,
+  kawung: (c) => [[9, 9], [27, 9], [9, 27], [27, 27]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7" fill="none" stroke="${c}" stroke-width="1.4"/>`).join(''),
+  ikat: (c) => `<path d="M${T / 2} 3 L${T - 5} ${T / 2} L${T / 2} ${T - 3} L5 ${T / 2} Z" fill="none" stroke="${c}" stroke-width="1.4"/><path d="M${T / 2} 11 L${T - 13} ${T / 2} L${T / 2} ${T - 11} L13 ${T / 2} Z" fill="none" stroke="${c}" stroke-width="1.1"/>`,
+  hook: (c) => `<path d="M6 ${T - 8} Q6 8 ${T / 2} 8 Q${T - 8} 8 ${T - 8} ${T / 2 - 2} Q${T - 8} ${T / 2 + 8} ${T / 2 + 2} ${T / 2 + 8}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/>`,
+  chevron: (c) => `<path d="M2 ${T / 3} L${T / 2} 6 L${T - 2} ${T / 3}" fill="none" stroke="${c}" stroke-width="1.5"/><path d="M2 ${(2 * T) / 3 + 4} L${T / 2} ${T / 3 + 10} L${T - 2} ${(2 * T) / 3 + 4}" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  star: (c) => {
+    const cx = T / 2, cy = T / 2, r1 = T / 2 - 4, r2 = 4;
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+      const a1 = (Math.PI / 4) * i, a2 = a1 + Math.PI / 8;
+      pts.push(`${(cx + r1 * Math.cos(a1)).toFixed(1)},${(cy + r1 * Math.sin(a1)).toFixed(1)}`);
+      pts.push(`${(cx + r2 * Math.cos(a2)).toFixed(1)},${(cy + r2 * Math.sin(a2)).toFixed(1)}`);
+    }
+    return `<polygon points="${pts.join(' ')}" fill="none" stroke="${c}" stroke-width="1.3"/>`;
+  },
+  carve: (c) => `<path d="M0 ${T / 4} Q${T / 4} ${T / 4 - 7} ${T / 2} ${T / 4} T${T} ${T / 4}" fill="none" stroke="${c}" stroke-width="1.4"/><path d="M0 ${(3 * T) / 4} Q${T / 4} ${(3 * T) / 4 - 7} ${T / 2} ${(3 * T) / 4} T${T} ${(3 * T) / 4}" fill="none" stroke="${c}" stroke-width="1.4"/>`,
+};
+
+export function motifTileUri(island, opacity = 0.4) {
+  const tile = TILE_SVG[island.motif]?.(island.accent);
+  if (!tile) return 'none';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${T}" height="${T}"><g opacity="${opacity}">${tile}</g></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}

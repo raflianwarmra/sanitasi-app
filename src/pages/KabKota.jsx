@@ -406,14 +406,14 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
         controls={(
           <>
             <SearchableSelect
-              style={{ width: 190 }}
+              style={{ width: 190, maxWidth: '100%' }}
               value={filterProv}
               onChange={(v) => { setFilterProv(v); setSelected(null); }}
               options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiList.map((p) => ({ value: p, label: p }))]}
               placeholder="Semua Provinsi"
             />
             <SearchableSelect
-              style={{ width: 210 }}
+              style={{ width: 210, maxWidth: '100%' }}
               value={selectedKab?.kode ?? ''}
               onChange={(v) => setSelected(filtered.find((k) => k.kode === v) ?? null)}
               options={filtered.map((k) => ({ value: k.kode, label: k.kabkot }))}
@@ -422,11 +422,12 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
             {selectedKab && <ExportButtons onCsv={handleCsv} onPptx={handlePptx} />}
           </>
         )}
-      />
+      >
+        {selectedKab && <AksesCard kab={selectedKab} theme={theme} ladderRungs={kabLadder} />}
+      </PageHeader>
 
       {selectedKab ? (
         <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
-          <AksesCard kab={selectedKab} theme={theme} ladderRungs={kabLadder} />
           <SectionCard
             title="Posisi di Provinsi"
             subtitle={`Perbandingan ${peers.length} kab/kota di ${selectedKab.provinsi} · garis putus-putus: rata-rata provinsi & nasional`}
