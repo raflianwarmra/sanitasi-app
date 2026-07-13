@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import Chart from 'chart.js/auto';
-import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional, useLadderProvinsi } from '../hooks/useSheetData';
+import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional, useLadderProvinsi, useKelembagaan } from '../hooks/useSheetData';
 import { useTheme, cssVar } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
@@ -48,6 +48,7 @@ export default function Provinsi({ onNavigate }) {
   const { data: nasional } = useNasional();
   const { data: ladder } = useLadderNasional();
   const { data: ladderProv } = useLadderProvinsi();
+  const { data: kelembagaan } = useKelembagaan();
   const { theme } = useTheme();
 
   // National is the default view; provinces sorted by BPS kode.
@@ -239,7 +240,7 @@ export default function Provinsi({ onNavigate }) {
     }
     return exportProvincePptx(selectedProv, kabsInProv, {
       ipal: ipalHere, iplt: ipltHere, kabsNoIPLT, broken: brokenUnits,
-    });
+    }, { kelembagaan: kelembagaan.filter((k) => String(k.kode).startsWith(provKode)) });
   };
 
   if (lP) return <LoadingSpinner text="Memuat data provinsi…" />;
