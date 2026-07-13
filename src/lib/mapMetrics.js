@@ -12,3 +12,11 @@ export const MAP_METRICS = {
   layak: { key: 'layak2025', label: 'Akses Layak', thresholds: [20, 50, 80, 90], ramp: RAMP_BLUE, higherBetter: true },
   babs: { key: 'babs2025', label: 'BABS Terbuka', thresholds: [1, 5, 10, 20], ramp: RAMP_ROSE, higherBetter: false },
 };
+
+// Threshold banding shared by the interactive map and the PPTX rasterizer.
+export function bandOf(value, thresholds) {
+  if (value == null || isNaN(value)) return -1;
+  let b = 0;
+  for (const t of thresholds) { if (value >= t) b++; }
+  return b;
+}

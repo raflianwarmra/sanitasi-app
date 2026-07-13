@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot } from '../hooks/useSheetData';
+import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot, useNasional } from '../hooks/useSheetData';
 import { useTheme } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
@@ -10,6 +10,7 @@ import SectionCard from '../components/SectionCard';
 import MetricCard from '../components/MetricCard';
 import LadderChart from '../components/LadderChart';
 import InfraDetailPanel from '../components/InfraDetailPanel';
+import BenchmarkChart from '../components/BenchmarkChart';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
@@ -232,6 +233,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const { data: ipltData } = useIPLT();
   const { data: logs, reload: reloadLogs } = useLog();
   const { data: ladderKab } = useLadderKabkot();
+  const { data: nasional } = useNasional();
   const { theme } = useTheme();
   const [filterProv, setFilterProv] = useState(initialProvinsi ?? '');
   const [selected, setSelected] = useState(null);
@@ -283,6 +285,12 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const kabLadder = useMemo(
     () => (selectedKab ? (ladderKab.find((r) => String(r.kode) === String(selectedKab.kode))?.rungs ?? null) : null),
     [ladderKab, selectedKab],
+  );
+
+  // Peers = all kab/kota sharing the province kode prefix (benchmark base).
+  const peers = useMemo(
+    () => (selectedKab ? kabkotData.filter((k) => String(k.kode).slice(0, 2) === String(selectedKab.kode).slice(0, 2)) : []),
+    [kabkotData, selectedKab],
   );
 
   const letter = kel ? clusterLetter(kel.clusterTataKelola) : null;
@@ -411,6 +419,16 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       {selectedKab ? (
         <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
           <AksesCard kab={selectedKab} theme={theme} ladderRungs={kabLadder} />
+          <SectionCard
+            title="Posisi di Provinsi"
+            subtitle={`Perbandingan ${peers.length} kab/kota di ${selectedKab.provinsi} · garis putus-putus: rata-rata provinsi & nasional`}
+          >
+            <div style={{ display: 'grid', gap: 22 }}>
+              <BenchmarkChart title="Akses Layak (termasuk Aman)" metricKey="layak2025" colorVar="--viz-layak" rows={peers} selectedKode={selectedKab.kode} natValue={nasional?.layak?.y2025} theme={theme} />
+              <BenchmarkChart title="Akses Aman" metricKey="aman2025" colorVar="--viz-aman" rows={peers} selectedKode={selectedKab.kode} natValue={nasional?.aman?.y2025} theme={theme} />
+              <BenchmarkChart title="BABS di Tempat Terbuka" metricKey="babs2025" colorVar="--viz-babs" rows={peers} selectedKode={selectedKab.kode} natValue={nasional?.babs?.y2025} theme={theme} higherBetter={false} />
+            </div>
+          </SectionCard>
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={setInfraDetail} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
         </div>

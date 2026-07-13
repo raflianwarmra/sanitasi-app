@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadProvinceGeo, loadNationalGeo, makeProjection, geometryToPath } from '../lib/geo';
-import { MAP_METRICS } from '../lib/mapMetrics';
+import { MAP_METRICS, bandOf } from '../lib/mapMetrics';
 import { fmtPct } from '../lib/format';
 import EmptyState from './EmptyState';
 import Icon from './Icon';
@@ -19,13 +19,6 @@ function normName(s) {
     .toLowerCase()
     .replace(/\b(kabupaten|kab\.?|adm\.?|administrasi)\b/g, '')
     .replace(/[^a-z]/g, '');
-}
-
-function bandOf(value, thresholds) {
-  if (value == null || isNaN(value)) return -1;
-  let b = 0;
-  for (const t of thresholds) { if (value >= t) b++; }
-  return b;
 }
 
 function legendLabels(thresholds) {
