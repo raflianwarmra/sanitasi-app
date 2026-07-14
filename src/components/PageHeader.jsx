@@ -26,7 +26,7 @@ export default function PageHeader({ kicker, title, titleExtra, meta, controls, 
     : { background: 'var(--paper)' };
 
   return (
-    <div style={{ ...heroStyle, borderBottom: '1px solid var(--line)' }}>
+    <div style={{ ...heroStyle, borderBottom: island ? 'none' : '1px solid var(--line)' }}>
       <div className="page-wrap page-pad" style={{
         paddingTop: 20, paddingBottom: children ? 12 : 20,
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
