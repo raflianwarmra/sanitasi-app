@@ -90,15 +90,21 @@ export function motifTileUri(island, opacity = 0.4) {
 }
 
 // Full-page island backdrop: bold tint at the top softening toward the
-// bottom, with the motif as a subtle texture across the whole page.
+// bottom, with the motif as a texture across the whole page. Shares the
+// exact color ramp and motif opacity with PageHeader's hero so the two
+// connect as one continuous surface (no left/right split, no seam).
 // Applied as the page root's own background (no overlays); cards float
 // on top with their solid paper fill.
+export const PAGE_TOP_MIX = 18;
+export const PAGE_BOTTOM_MIX = 8;
+export const MOTIF_OPACITY = 0.22;
+
 export function islandPageBackground(island) {
   return {
     backgroundColor: 'var(--bg)',
     backgroundImage: [
-      motifTileUri(island, 0.16),
-      `linear-gradient(180deg, color-mix(in oklch, ${island.accent} 14%, var(--bg-base)), color-mix(in oklch, ${island.accent} 6%, var(--bg-base)))`,
+      motifTileUri(island, MOTIF_OPACITY),
+      `linear-gradient(180deg, color-mix(in oklch, ${island.accent} ${PAGE_TOP_MIX}%, var(--bg-base)), color-mix(in oklch, ${island.accent} ${PAGE_BOTTOM_MIX}%, var(--bg-base)))`,
     ].join(', '),
     backgroundRepeat: 'repeat, no-repeat',
     backgroundSize: 'auto, 100% 100%',
