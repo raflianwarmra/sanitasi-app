@@ -2,24 +2,26 @@
 // optional hero extension (children — e.g. the KPI card row) sharing the
 // same island-themed background.
 //
-// The island treatment is the container's OWN background (color + layered
-// CSS gradients + an SVG-tile background-image) — never an absolutely
+// The island treatment is the container's OWN background (color + a
+// vertical gradient + an SVG-tile background-image) — never an absolutely
 // positioned overlay, so there is no clipping/stacking/interaction risk.
-// It softens toward the bottom into the page's subtle island tint
-// (var(--bg)) rather than plain white.
+// It is symmetric left-to-right (no horizontal wash) and fades vertically
+// into islandPageBackground's top tone, so hero and page read as one
+// continuous surface with no seam or asymmetry.
 
-import { motifTileUri } from '../lib/islandTheme';
+import { motifTileUri, PAGE_TOP_MIX, MOTIF_OPACITY } from '../lib/islandTheme';
 
 export default function PageHeader({ kicker, title, titleExtra, meta, controls, island, children }) {
   const heroStyle = island
     ? {
-        backgroundColor: `color-mix(in oklch, ${island.accent} 24%, var(--paper))`,
+        // Same base (--bg-base) and mix ramp as islandPageBackground, so the
+        // hero and the page below read as one continuous surface — no
+        // horizontal split, no seam where the hero ends.
+        backgroundColor: `color-mix(in oklch, ${island.accent} 28%, var(--bg-base))`,
         backgroundImage: [
-          // vertical soften: fade into the page's tinted background
-          `linear-gradient(180deg, transparent 0%, transparent 55%, color-mix(in oklch, ${island.accent} 14%, var(--bg-base)) 100%)`,
-          // left readability wash: text zone stays calm, motif shows right
-          `linear-gradient(90deg, color-mix(in oklch, ${island.accent} 10%, var(--paper)) 0%, color-mix(in oklch, ${island.accent} 10%, var(--paper)) 40%, transparent 78%)`,
-          motifTileUri(island),
+          motifTileUri(island, MOTIF_OPACITY),
+          // vertical soften: fade from the bold hero peak into the page's top tone
+          `linear-gradient(180deg, transparent 0%, transparent 45%, color-mix(in oklch, ${island.accent} ${PAGE_TOP_MIX}%, var(--bg-base)) 100%)`,
         ].join(', '),
         transition: 'background-color 0.25s ease-out',
       }
