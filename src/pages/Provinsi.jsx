@@ -6,7 +6,7 @@ import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
 import { exportProvincePptx } from '../lib/exportPptx';
 import { NAT_YEARS } from '../lib/sheets';
-import { islandOf } from '../lib/islandTheme';
+import { islandOf, islandPageBackground } from '../lib/islandTheme';
 import Breadcrumb from '../components/Breadcrumb';
 import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
@@ -257,7 +257,7 @@ export default function Provinsi({ onNavigate }) {
   const aGood = ipalHere.filter((x) => x.isFunctioning).length;
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', ...(island ? islandPageBackground(island) : { background: 'var(--bg)' }) }}>
       <Breadcrumb
         path={[
           { label: 'Beranda', path: '/' },

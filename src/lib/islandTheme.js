@@ -88,3 +88,20 @@ export function motifTileUri(island, opacity = 0.4) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${T}" height="${T}"><g opacity="${opacity}">${tile}</g></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
+
+// Full-page island backdrop: bold tint at the top softening toward the
+// bottom, with the motif as a subtle texture across the whole page.
+// Applied as the page root's own background (no overlays); cards float
+// on top with their solid paper fill.
+export function islandPageBackground(island) {
+  return {
+    backgroundColor: 'var(--bg)',
+    backgroundImage: [
+      motifTileUri(island, 0.16),
+      `linear-gradient(180deg, color-mix(in oklch, ${island.accent} 14%, var(--bg-base)), color-mix(in oklch, ${island.accent} 6%, var(--bg-base)))`,
+    ].join(', '),
+    backgroundRepeat: 'repeat, no-repeat',
+    backgroundSize: 'auto, 100% 100%',
+    transition: 'background-color 0.25s ease-out',
+  };
+}
