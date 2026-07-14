@@ -13,12 +13,12 @@ import { motifTileUri } from '../lib/islandTheme';
 export default function PageHeader({ kicker, title, titleExtra, meta, controls, island, children }) {
   const heroStyle = island
     ? {
-        backgroundColor: `color-mix(in oklch, ${island.accent} 15%, var(--paper))`,
+        backgroundColor: `color-mix(in oklch, ${island.accent} 24%, var(--paper))`,
         backgroundImage: [
           // vertical soften: fade into the page's tinted background
-          'linear-gradient(180deg, transparent 0%, transparent 58%, var(--bg) 100%)',
+          `linear-gradient(180deg, transparent 0%, transparent 55%, color-mix(in oklch, ${island.accent} 14%, var(--bg-base)) 100%)`,
           // left readability wash: text zone stays calm, motif shows right
-          `linear-gradient(90deg, color-mix(in oklch, ${island.accent} 7%, var(--paper)) 0%, color-mix(in oklch, ${island.accent} 7%, var(--paper)) 40%, transparent 78%)`,
+          `linear-gradient(90deg, color-mix(in oklch, ${island.accent} 10%, var(--paper)) 0%, color-mix(in oklch, ${island.accent} 10%, var(--paper)) 40%, transparent 78%)`,
           motifTileUri(island),
         ].join(', '),
         transition: 'background-color 0.25s ease-out',

@@ -17,7 +17,7 @@ import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter } from '../lib/cluster';
-import { islandOf } from '../lib/islandTheme';
+import { islandOf, islandPageBackground } from '../lib/islandTheme';
 
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
 
@@ -382,7 +382,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   if (error) return <ErrorCard message={error} onRetry={reload} />;
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', ...(island ? islandPageBackground(island) : { background: 'var(--bg)' }) }}>
       <Breadcrumb
         path={[
           { label: 'Beranda', path: '/' },
