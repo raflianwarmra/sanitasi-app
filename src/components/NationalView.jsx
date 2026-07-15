@@ -78,7 +78,7 @@ export default function NationalView({
   const yearsLbl = NAT_YEARS.map(String);
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
 
       {/* Interpretation + diversity band */}
       <SectionCard title="Ringkasan Nasional · 2025" subtitle='Sumber: sheet "Nasional" (BPS)'>

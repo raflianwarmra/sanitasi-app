@@ -14,7 +14,7 @@ export default function ChartContainer({ height = 240, build, deps = [], ariaLab
   }, deps);
 
   return (
-    <div style={{ position: 'relative', height }}>
+    <div style={{ position: 'relative', height, minWidth: 0, maxWidth: '100%' }}>
       <canvas ref={canvasRef} role="img" aria-label={ariaLabel} />
     </div>
   );

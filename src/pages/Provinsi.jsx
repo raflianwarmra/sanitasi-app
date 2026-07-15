@@ -373,7 +373,7 @@ export default function Provinsi({ onNavigate }) {
             onOpenProvince={(kode) => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); }}
           />
         ) : (
-          <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
 
             {/* Tangga sanitasi (real ladder data) */}
             <SectionCard

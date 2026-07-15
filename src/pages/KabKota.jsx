@@ -427,7 +427,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       </PageHeader>
 
       {selectedKab ? (
-        <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gap: 16 }}>
+        <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
           <SectionCard
             title="Posisi di Provinsi"
             subtitle={`Perbandingan ${peers.length} kab/kota di ${selectedKab.provinsi} · garis putus-putus: rata-rata provinsi & nasional`}
