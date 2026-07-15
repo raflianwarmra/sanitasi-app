@@ -144,11 +144,11 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
   const selKab = selShape ? findKab(selShape.kode, selShape.nama) : null;
 
   return (
-    <div>
-      <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div style={{ minWidth: 0 }}>
+      <div ref={wrapRef} style={{ position: 'relative', minWidth: 0 }}>
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          style={{ width: '100%', height: 'auto', display: 'block', maxHeight: 520 }}
+          style={{ width: '100%', maxWidth: '100%', height: 'auto', display: 'block', maxHeight: 520 }}
           role="group"
           aria-label={`Peta ${metricDef.label} per kabupaten/kota`}
         >

@@ -98,9 +98,15 @@ html, body {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Safety net: no single oversized child (SVG map, chart canvas, wide
+     table) may ever inflate the document and drag the whole page sideways.
+     The real fixes are minmax(0,1fr) grids + min-width:0 wrappers below;
+     this just guarantees the page can never scroll horizontally. */
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
-#root { min-height: 100dvh; }
+#root { min-height: 100dvh; max-width: 100%; overflow-x: clip; }
 
 ::selection { background: var(--accent-soft); }
 
@@ -221,6 +227,7 @@ html, body {
 .select-list {
   overflow-y: auto;
   max-height: 220px;
+  min-height: 0; /* flex child must be shrinkable for its own overflow to scroll on touch */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -263,7 +270,7 @@ html, body {
   .nav-links   { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
   .page-pad  { padding-left: 16px; padding-right: 16px; }
-  .stack-mobile { grid-template-columns: 1fr !important; }
+  .stack-mobile { grid-template-columns: minmax(0, 1fr) !important; }
   .title-mobile { font-size: 20px !important; }
   .btn { min-height: 44px; }
   .btn-sm { min-height: 38px; }
