@@ -7,6 +7,7 @@ import { downloadCsvSections } from '../lib/exportCsv';
 import { exportProvincePptx } from '../lib/exportPptx';
 import { NAT_YEARS } from '../lib/sheets';
 import { islandOf, islandPageBackground } from '../lib/islandTheme';
+import { loadPref, savePref } from '../lib/persist';
 import Breadcrumb from '../components/Breadcrumb';
 import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
@@ -25,6 +26,7 @@ import Icon from '../components/Icon';
 
 const YEARS = [2022, 2023, 2024, 2025];
 const NATIONAL_KEY = '__nasional__';
+const PROV_KEY = 'sanitasi_prov_kode';
 
 function baseChartOpts() {
   const grid = cssVar('--viz-grid');
@@ -52,7 +54,8 @@ export default function Provinsi({ onNavigate }) {
   const { theme } = useTheme();
 
   // National is the default view; provinces sorted by BPS kode.
-  const [selectedKode, setSelectedKode] = useState(NATIONAL_KEY);
+  // Restore last-viewed province from the browser (persists across nav/restart).
+  const [selectedKode, setSelectedKode] = useState(() => loadPref(PROV_KEY) ?? NATIONAL_KEY);
   const [mapMetric, setMapMetric] = useState('aman');
   const [sortBy, setSortBy] = useState('aman');
   const [sortDir, setSortDir] = useState('desc');
@@ -75,6 +78,9 @@ export default function Provinsi({ onNavigate }) {
     else document.documentElement.removeAttribute('data-island');
     return () => document.documentElement.removeAttribute('data-island');
   }, [island]);
+
+  // Remember the current selection so it survives navigation and restart.
+  useEffect(() => { savePref(PROV_KEY, selectedKode); }, [selectedKode]);
 
   const provLadder = useMemo(
     () => ladderProv.find((r) => r.kode === provKode) ?? null,
