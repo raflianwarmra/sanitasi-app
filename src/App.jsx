@@ -4,6 +4,7 @@ import Landing from './pages/Landing';
 import Provinsi from './pages/Provinsi';
 import Infrastruktur from './pages/Infrastruktur';
 import KabKota from './pages/KabKota';
+import AccessGate from './components/AccessGate';
 
 function currentPath() {
   return window.location.hash.replace(/^#/, '') || '/';
@@ -47,19 +48,21 @@ export default function App() {
   const navActive = '/' + (page === 'landing' ? '' : page === 'infra' ? 'infrastruktur' : page);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <TopNav active={navActive} onNavigate={navigate} />
+    <AccessGate>
+      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <TopNav active={navActive} onNavigate={navigate} />
 
-      {page === 'landing'    && <Landing onNavigate={navigate} />}
-      {page === 'provinsi'   && <Provinsi onNavigate={navigate} />}
-      {page === 'infra'      && <Infrastruktur onNavigate={navigate} />}
-      {page === 'kabkota'    && (
-        <KabKota
-          onNavigate={navigate}
-          initialProvinsi={search.provinsi ? decodeURIComponent(search.provinsi) : ''}
-          initialKode={search.kode ? decodeURIComponent(search.kode) : ''}
-        />
-      )}
-    </div>
+        {page === 'landing'    && <Landing onNavigate={navigate} />}
+        {page === 'provinsi'   && <Provinsi onNavigate={navigate} />}
+        {page === 'infra'      && <Infrastruktur onNavigate={navigate} />}
+        {page === 'kabkota'    && (
+          <KabKota
+            onNavigate={navigate}
+            initialProvinsi={search.provinsi ? decodeURIComponent(search.provinsi) : ''}
+            initialKode={search.kode ? decodeURIComponent(search.kode) : ''}
+          />
+        )}
+      </div>
+    </AccessGate>
   );
 }

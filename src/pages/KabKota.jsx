@@ -18,8 +18,11 @@ import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter } from '../lib/cluster';
 import { islandOf, islandPageBackground } from '../lib/islandTheme';
+import { loadPref, savePref } from '../lib/persist';
 
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
+const KAB_PROV_KEY = 'sanitasi_kab_prov';
+const KAB_KODE_KEY = 'sanitasi_kab_kode';
 
 // Benchmark selector options (mirrors the Provinsi map metric selector).
 const BENCH_METRICS = [
@@ -242,7 +245,8 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const { data: ladderKab } = useLadderKabkot();
   const { data: nasional } = useNasional();
   const { theme } = useTheme();
-  const [filterProv, setFilterProv] = useState(initialProvinsi ?? '');
+  // Priority: URL deep-link (map click) -> persisted -> none.
+  const [filterProv, setFilterProv] = useState(initialProvinsi || loadPref(KAB_PROV_KEY) || '');
   const [selected, setSelected] = useState(null);
   const [infraDetail, setInfraDetail] = useState(null);
   const [benchMetric, setBenchMetric] = useState('aman2025');
@@ -253,6 +257,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [infraDetail]);
+
 
   const provinsiList = useMemo(() => {
     const set = new Set(kabkotData.map((k) => k.provinsi).filter(Boolean));
@@ -267,7 +272,20 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
     () => (initialKode ? kabkotData.find((k) => String(k.kode) === String(initialKode)) : null),
     [kabkotData, initialKode],
   );
-  const selectedKab = selected ?? fromUrl ?? filtered[0];
+  // Persisted kab/kota — only when there's no URL deep-link, and only if the
+  // saved kode still belongs to the (also persisted) province filter.
+  const persistedKab = useMemo(() => {
+    if (initialKode) return null;
+    const saved = loadPref(KAB_KODE_KEY);
+    return saved ? filtered.find((k) => String(k.kode) === String(saved)) ?? null : null;
+  }, [initialKode, filtered]);
+  // Priority: explicit pick -> URL deep-link -> persisted -> first in list.
+  const selectedKab = selected ?? fromUrl ?? persistedKab ?? filtered[0];
+
+  // Remember province filter + selected kab/kota across navigation/restart.
+  useEffect(() => { savePref(KAB_PROV_KEY, filterProv); }, [filterProv]);
+  const selKode = selectedKab?.kode;
+  useEffect(() => { if (selKode) savePref(KAB_KODE_KEY, selKode); }, [selKode]);
 
   const kel = useMemo(() => {
     if (!selectedKab) return null;
