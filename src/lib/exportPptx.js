@@ -357,7 +357,7 @@ export async function exportKabkotaPptx(kab, kel, clusterInfo, infra, logs) {
       ...kelRows.map(([a, b]) => [{ text: a, options: { ...TBL_BASE, bold: true } }, { text: b, options: TBL_BASE }]),
     ], { x: 0.5, y: 1.6, w: 12.3, colW: [4.3, 8], rowH: 0.5 });
     s.addText(
-      'Cluster tata kelola mengelompokkan kesiapan kelembagaan sanitasi daerah dari A (perlu intervensi menyeluruh) hingga F (tata kelola lengkap), berdasarkan status operator dan kelengkapan regulasi.',
+      'Cluster tata kelola mengelompokkan kesiapan kelembagaan sanitasi daerah dari A (tata kelola lengkap) hingga F (perlu intervensi menyeluruh), berdasarkan status operator dan kelengkapan regulasi.',
       { x: 0.5, y: 4.9, w: 12.3, h: 0.8, fontFace: FONT, fontSize: 11, color: C.ink2, italic: true },
     );
   } else {

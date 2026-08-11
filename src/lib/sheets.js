@@ -17,7 +17,31 @@ export const SHEET_GIDS = {
   LADDER_KAB:  'Ladder Kabupaten/Kota',
 };
 
+// Tab name -> gid. The `/gviz/tq?tqx=out:csv` endpoint (used previously) serves
+// a stale cached snapshot for this spreadsheet — entire columns (e.g. "Kapasitas
+// Desain") were coming back blank even though the live sheet has values. The
+// `/export?format=csv` endpoint below always returns the current, live data, but
+// it needs a numeric gid rather than a sheet name.
+const TAB_GIDS = {
+  'Akses Provinsi':         1880935298,
+  'Akses Kabkot':           256189122,
+  'Kelembagaan Regulasi':   1693699103,
+  'IPAL':                   1038073652,
+  'IPLT':                   1156541656,
+  'Log Catatan Infras':     2123970257,
+  'Team Member':            1947294003,
+  'Nasional':               2099105298,
+  'Ladder Nasional':        1586846199,
+  'Ladder Provinsi':        620466446,
+  'Ladder Kabupaten/Kota':  635331547,
+};
+
 function csvUrl(sheet) {
+  const gid = TAB_GIDS[sheet];
+  if (gid != null) {
+    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+  }
+  // Fallback for any tab not in the gid map.
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 }
 
@@ -186,7 +210,7 @@ export function normalizeInfra(raw, type) {
       kabkot: pick(r, 'kabupaten/kota', 'kabupaten', 'kabkot', 'kota'),
       provinsi: pick(r, 'provinsi'),
       tahunBangun: pick(r, 'tahun pembangunan', 'tahun'),
-      kapasitas: pickNum(r, 'kapasitas desain', 'kapasitas'),
+      kapasitas: pickNum(r, 'kapasitas desain'),
       kapasitasTerpakai: pickNum(r, 'kapasitas terpakai', 'terpakai'),
       idle: pickNum(r, 'idle'),
       sr: pickNum(r, type === 'IPAL' ? 'sr' : 'kk', 'sambungan'),

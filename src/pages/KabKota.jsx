@@ -16,7 +16,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
-import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter } from '../lib/cluster';
+import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter, rawClusterLetter } from '../lib/cluster';
 import { islandOf, islandPageBackground } from '../lib/islandTheme';
 import { loadPref, savePref } from '../lib/persist';
 
@@ -140,6 +140,7 @@ function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
 // ── Kelembagaan card ───────────────────────────────────────────
 function KelembagaanCard({ kel, kab }) {
   const letter = kel ? clusterLetter(kel.clusterTataKelola) : null;
+  const rawLetter = kel ? rawClusterLetter(kel.clusterTataKelola) : null;
 
   const regBadge = (v) => (hasVal(v)
     ? <span className="chip chip-ok" style={{ fontSize: 10.5 }}>Ada</span>
@@ -204,9 +205,9 @@ function KelembagaanCard({ kel, kab }) {
                 </div>
               </div>
               <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8, lineHeight: 1.5 }}>
-                Pengelompokan kesiapan tata kelola sanitasi daerah, dari A (perlu intervensi menyeluruh) hingga F (tata kelola lengkap).
+                Pengelompokan kesiapan tata kelola sanitasi daerah, dari A (tata kelola lengkap) hingga F (perlu intervensi menyeluruh).
               </div>
-              {kel.clusterTataKelola && letter && kel.clusterTataKelola.trim().toUpperCase() !== letter && (
+              {kel.clusterTataKelola && rawLetter && kel.clusterTataKelola.trim().toUpperCase() !== rawLetter && (
                 <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 6 }}>
                   Nilai pada sheet: “{kel.clusterTataKelola}”
                 </div>
