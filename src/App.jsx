@@ -3,11 +3,15 @@ import TopNav from './components/TopNav';
 import Landing from './pages/Landing';
 import AccessGate from './components/AccessGate';
 import LoadingSpinner from './components/LoadingSpinner';
+import Toaster from './components/Toaster';
+import { withViewTransition } from './lib/viewTransition';
 
 // Data pages load on demand: the home page ships without Chart.js/maps.
 const Provinsi = lazy(() => import('./pages/Provinsi'));
 const Infrastruktur = lazy(() => import('./pages/Infrastruktur'));
 const KabKota = lazy(() => import('./pages/KabKota'));
+// Warm the other pages while idle so a transition never waits on a download.
+const preloadPages = () => { import('./pages/Provinsi'); import('./pages/Infrastruktur'); import('./pages/KabKota'); };
 
 function currentPath() {
   return window.location.hash.replace(/^#/, '') || '/';
@@ -30,8 +34,14 @@ export default function App() {
   const [path, setPath] = useState(currentPath());
 
   useEffect(() => {
-    const onHashChange = () => setPath(currentPath());
+    // Every route change (links, back/forward) is one continuous transition.
+    const onHashChange = () => withViewTransition(() => {
+      setPath(currentPath());
+      window.scrollTo(0, 0);
+    });
     window.addEventListener('hashchange', onHashChange);
+    const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1200));
+    idle(preloadPages);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
@@ -40,12 +50,11 @@ export default function App() {
 
   const navigate = useCallback((to) => {
     if (currentPath() === to) {
-      // Same path — force re-render anyway
-      setPath(to);
+      // Same path — re-render anyway, and return to the top
+      withViewTransition(() => { setPath(to); window.scrollTo(0, 0); });
     } else {
-      window.location.hash = to;
+      window.location.hash = to; // hashchange runs the transition + scroll
     }
-    window.scrollTo(0, 0);
   }, []);
 
   const navActive = '/' + (page === 'landing' ? '' : page === 'infra' ? 'infrastruktur' : page);
@@ -77,6 +86,7 @@ export default function App() {
         )}
         </Suspense>
         </main>
+        <Toaster />
       </div>
     </AccessGate>
   );

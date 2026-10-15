@@ -108,7 +108,7 @@ export default function BumdCard({ kab, bumd, loading, rowCount }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+            <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
               <MetricCard
                 label="Pelanggan aktif"
                 value={bumd.pelangganAktif != null ? fmtNum(bumd.pelangganAktif) : null}

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
+import { usePresence } from '../hooks/useOverlay';
 
 // Searchable single-select following the WAI-ARIA combobox + listbox pattern:
 // the trigger opens a popover anchored to it; the search field owns focus and
@@ -26,6 +27,7 @@ export default function SearchableSelect({
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
   const listRef = useRef(null);
+  const pop = usePresence(open, 220);
 
   const normalized = useMemo(
     () => options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o)),
@@ -112,8 +114,8 @@ export default function SearchableSelect({
         <Icon name="chevronDown" size={14} style={{ color: 'var(--ink-3)', transition: 'transform var(--dur-1) var(--ease-out)', transform: open ? 'rotate(180deg)' : 'none' }} />
       </button>
 
-      {open && (
-        <div className="popover">
+      {pop.mounted && (
+        <div className="popover" data-state={pop.state} inert={!open}>
           <div style={{ padding: 6, borderBottom: '1px solid var(--line-2)' }}>
             <input
               className="input"

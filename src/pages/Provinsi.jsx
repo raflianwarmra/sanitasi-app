@@ -24,6 +24,7 @@ import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import SearchableSelect from '../components/SearchableSelect';
 import Icon from '../components/Icon';
 import { rowLinkProps } from '../hooks/useOverlay';
+import { withViewTransition } from '../lib/viewTransition';
 
 const YEARS = [2022, 2023, 2024, 2025];
 const NATIONAL_KEY = '__nasional__';
@@ -286,7 +287,7 @@ export default function Provinsi({ onNavigate }) {
             <SearchableSelect
               style={{ width: 230, maxWidth: '100%' }}
               value={selectedKode}
-              onChange={setSelectedKode}
+              onChange={(v) => withViewTransition(() => setSelectedKode(v))}
               options={selectOptions}
               sortOptions={false}
               placeholder="Pilih provinsi"
@@ -378,7 +379,7 @@ export default function Provinsi({ onNavigate }) {
             ipal={ipal}
             iplt={iplt}
             theme={theme}
-            onOpenProvince={(kode) => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); }}
+            onOpenProvince={(kode) => withViewTransition(() => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); })}
           />
         ) : (
           <div className="stack">

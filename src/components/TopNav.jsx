@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '../lib/theme';
-import { usePresence, useFocusTrap } from '../hooks/useOverlay';
+import { usePresence, useFocusTrap, useDragDismiss } from '../hooks/useOverlay';
 import Icon from './Icon';
 
 const NAV_ITEMS = [
@@ -29,7 +30,10 @@ export default function TopNav({ active, onNavigate }) {
   const scrolled = useScrolled();
   const sheet = usePresence(menuOpen);
   const sheetRef = useRef(null);
+  const scrimRef = useRef(null);
   useFocusTrap(sheetRef, menuOpen, () => setMenuOpen(false));
+  // Drag the sheet back out to the right — the way it came in.
+  useDragDismiss(sheetRef, { axis: 'x', enabled: sheet.mounted, scrimRef, onDismiss: () => setMenuOpen(false) });
 
   return (
     <>
@@ -93,9 +97,9 @@ export default function TopNav({ active, onNavigate }) {
         </div>
       </nav>
 
-      {sheet.mounted && (
+      {sheet.mounted && createPortal(
         <>
-          <div className="scrim" data-state={sheet.state} onClick={() => setMenuOpen(false)} aria-hidden="true" />
+          <div ref={scrimRef} className="scrim" data-state={sheet.state} onClick={() => setMenuOpen(false)} aria-hidden="true" />
           <div
             ref={sheetRef}
             className="sheet-right"
@@ -137,7 +141,8 @@ export default function TopNav({ active, onNavigate }) {
               })}
             </ul>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </>
   );

@@ -42,7 +42,7 @@ export default function Landing({ onNavigate }) {
   return (
     <div style={{ minHeight: '100vh' }}>
       <div className="page-wrap page-pad" style={{ paddingTop: 56, paddingBottom: 32 }}>
-        <h1 className="text-largetitle title-mobile" style={{ margin: '0 0 14px', maxWidth: '20ch', textWrap: 'balance' }}>
+        <h1 className="text-largetitle title-mobile vt-title" style={{ margin: '0 0 14px', maxWidth: '20ch', textWrap: 'balance' }}>
           Data kinerja sanitasi Indonesia untuk perencanaan dan monitoring
         </h1>
         <p className="text-lead" style={{ maxWidth: '62ch', margin: '0 0 24px' }}>
