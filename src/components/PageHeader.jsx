@@ -1,7 +1,7 @@
 // Page identity band: large title first, then a context line (island ·
 // scope · meta), right-aligned controls, and an optional hero extension
 // (children — e.g. the KPI card row). Transparent: it sits on the page's
-// own background (the island glow comes from islandPageBackground).
+// own background (the island sky + motif come from .island-page).
 
 export default function PageHeader({ context, title, titleExtra, meta, controls, island, children }) {
   return (
@@ -21,9 +21,11 @@ export default function PageHeader({ context, title, titleExtra, meta, controls,
           {(context || island || meta) && (
             <div className="text-body" style={{ color: 'var(--ink-2)', marginTop: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 8px' }}>
               {island && (
-                <span className="chip" style={{ background: `color-mix(in srgb, ${island.accent} 82%, black)`, color: '#fff' }}>
-                  {island.name}
-                </span>
+                <>
+                  <span className="island-badge">{island.name}</span>
+                  <span className="island-nuance">{island.note}</span>
+                  <span aria-hidden="true" style={{ color: 'var(--ink-3)' }}>·</span>
+                </>
               )}
               {context && <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{context}</span>}
               {context && meta && <span aria-hidden="true" style={{ color: 'var(--ink-3)' }}>·</span>}

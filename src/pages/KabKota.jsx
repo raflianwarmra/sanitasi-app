@@ -20,7 +20,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import BumdCard from '../components/BumdCard';
 import { findBumd } from '../lib/bumd';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter, rawClusterLetter } from '../lib/cluster';
-import { islandOf, islandPageBackground } from '../lib/islandTheme';
+import { islandOf, islandPageProps } from '../lib/islandTheme';
 import { loadPref, savePref } from '../lib/persist';
 
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
@@ -438,7 +438,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   if (error) return <ErrorCard message={error} onRetry={reload} />;
 
   return (
-    <div style={{ minHeight: '100vh', ...(island ? islandPageBackground(island) : { background: 'var(--bg)' }) }}>
+    <div {...islandPageProps(island)}>
       <Breadcrumb
         path={[
           { label: 'Beranda', path: '/' },

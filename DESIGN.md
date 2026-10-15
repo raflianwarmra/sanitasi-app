@@ -16,7 +16,7 @@ system blue; dark = true black canvas, `#1C1C1E` cards.
 
 | Token | Role |
 |---|---|
-| `--bg` | grouped canvas — light cool gray; island pages tint it 6% |
+| `--bg` | grouped canvas — Apple gray; each island remaps it (see Island themes) |
 | `--paper` | the one elevated surface (cards, dialogs, popovers) |
 | `--paper-2` | inset tiles inside a card (KPI, detail groups), row hover |
 | `--fill` / `--fill-2` | control tracks & input fields / pressed state |
@@ -35,6 +35,39 @@ Rules:
 - Choropleth ramps (`lib/mapMetrics.js`) are the one fixed-hex exception: they are
   shared with the PPTX rasterizer and must read the same in both themes.
 - No gradients as decoration, no glass cards, no side-stripe accents.
+
+## Island themes (nuansa per pulau)
+
+When a province or kab/kota page is open, `<html data-island="…">` switches
+the whole chrome to that island's nuansa — not just an accent. Tokens are
+generated (light + dark, WCAG-checked) by `scripts/build_island_themes.py`
+into `src/index.css`; rerun it to tune a palette.
+
+| Island | Nuansa | Motif (hero sky) |
+|---|---|---|
+| Sumatera | songket emas — warm gold | songket lattice |
+| Jawa | batik indigo | kawung circles |
+| Bali–Nusa Tenggara | tenun ikat terakota | ikat diamonds |
+| Kalimantan | hijau hutan hujan | hook spirals |
+| Sulawesi | toska pesisir | chevrons |
+| Maluku | merah rempah cengkih | clove stars |
+| Papua | cokelat ukiran | carving waves |
+
+What an island remaps: canvas (`--bg-base`), inset tiles (`--paper-2`),
+fills, hairlines, the UI accent (`--accent`, `-fill`, `-soft`, `-strong`:
+buttons, links, focus, nav pill, app mark, breadcrumb), the nav material,
+dark-mode card surfaces, and `.island-page` — a hero "sky" in
+`--island-hero` with the island motif drawn in `--island-motif` through a
+mask, densest top-right behind the controls, clear of the title. The header
+shows an island badge + its nuansa name.
+
+What it never remaps: `--viz-*`, ok/warn/bad, map ramps, chart and table
+colors — a province in Papua must read with the same color rules as one in
+Jawa. Light-mode cards stay pure white so data surfaces are identical.
+
+Switching islands cross-fades: the theme colors are registered `@property`
+`<color>` tokens transitioned on `html` (off under reduced motion; motif
+hidden under `prefers-contrast: more`; softened on phones).
 
 ## Typography
 
