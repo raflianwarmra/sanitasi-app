@@ -35,7 +35,7 @@ export default function ExportButtons({ onCsv, onPptx, csvLabel = 'Unduh CSV', p
           {busy ? 'Menyusun…' : pptxLabel}
         </button>
       )}
-      {error && <span role="alert" style={{ fontSize: 11.5, color: 'var(--bad)' }}>{error}</span>}
+      {error && <span role="alert" style={{ fontSize: '0.75rem', color: 'var(--bad)' }}>{error}</span>}
     </div>
   );
 }

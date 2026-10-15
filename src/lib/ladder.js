@@ -4,10 +4,10 @@
 import { cssVar } from './theme';
 
 const COLOR_RULES = [
-  { test: /aman terpusat/, color: () => '#0F5568' },
+  { test: /aman terpusat/, color: () => cssVar('--viz-aman-deep') },
   { test: /aman setempat/, color: () => cssVar('--viz-aman') },
   { test: /layak sendiri/, color: () => cssVar('--viz-layak') },
-  { test: /layak bersama/, color: () => '#97AFDE' },
+  { test: /layak bersama/, color: () => cssVar('--viz-layak-light') },
   { test: /belum layak/, color: () => cssVar('--viz-muted') },
   { test: /babs tertutup/, color: () => cssVar('--warn') },
   { test: /babs/, color: () => cssVar('--viz-babs') },

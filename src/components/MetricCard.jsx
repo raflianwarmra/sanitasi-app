@@ -1,5 +1,5 @@
-// Compact KPI: label, tabular figure, context line. Status via text color of
-// the figure only — no colored borders or decorated surfaces.
+// Compact KPI: label, tabular figure, context line, optional 0–100 meter.
+// Status via the figure's text color only — no colored borders or surfaces.
 
 const TONES = {
   default: 'var(--ink)',
@@ -12,17 +12,21 @@ const TONES = {
   babs: 'var(--viz-babs)',
 };
 
-export default function MetricCard({ label, value, unit, sub, tone = 'default', size = 26 }) {
+export default function MetricCard({ label, value, unit, sub, tone = 'default', size, meter }) {
+  const color = TONES[tone] ?? TONES.default;
   return (
     <div className="kpi">
-      <div style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)', marginBottom: 4 }}>{label}</div>
-      <div className="num" style={{ fontSize: size, fontWeight: 700, lineHeight: 1.15, color: TONES[tone] ?? TONES.default }}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value num" style={{ color, ...(size ? { fontSize: `${size / 16}rem` } : null) }}>
         {value ?? '—'}
-        {unit && value != null && (
-          <span style={{ fontSize: Math.round(size * 0.55), fontWeight: 500, color: 'var(--ink-3)', marginLeft: 2 }}>{unit}</span>
-        )}
+        {unit && value != null && <span className="kpi-unit">{unit}</span>}
       </div>
-      {sub && <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 4 }}>{sub}</div>}
+      {meter != null && (
+        <div className="meter" aria-hidden="true">
+          <span style={{ width: `${Math.min(Math.max(meter, 0), 100)}%`, background: color }} />
+        </div>
+      )}
+      {sub && <div className="kpi-sub">{sub}</div>}
     </div>
   );
 }

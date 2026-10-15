@@ -311,7 +311,37 @@ export async function exportProvincePptx(p, kabs, infra, opts = {}) {
 // Kab/kota deck (4 slides, dashboard-card visual language)
 // ═══════════════════════════════════════════════════════════════
 
-export async function exportKabkotaPptx(kab, kel, clusterInfo, infra, logs) {
+function rp(v) {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(v);
+  const [div, unit, d] = abs >= 1e12 ? [1e12, ' T', 2] : abs >= 1e9 ? [1e9, ' M', 2] : [1e6, ' jt', 0];
+  return `${v < 0 ? '−' : ''}Rp${(abs / div).toFixed(d).replace('.', ',')}${unit}`;
+}
+
+function num(v) {
+  return v == null || isNaN(v) ? '—' : Math.round(v).toLocaleString('id-ID');
+}
+
+function addBumdSlide(pptx, kab, b) {
+  const s = pptx.addSlide({ masterName: 'MASTER' });
+  addTitle(s, `Kondisi BUMD Air Minum · Tahun Buku ${b.tahunBuku || '—'}`, kab.kabkot);
+  const statusColor = { Sehat: C.ok, 'Kurang Sehat': C.warn, Sakit: C.rose }[b.status] ?? C.ink;
+  s.addText(`${b.nama}${b.lingkup === 'Provinsi' ? ` · BUMD tingkat provinsi (seluruh ${b.provinsi})` : ''}`, {
+    x: 0.5, y: 1.28, w: 12.3, h: 0.35, fontFace: FONT, fontSize: 13, color: C.ink2,
+  });
+  kpiBlock(s, 0.5, 1.85, 4.0, 'Status kinerja (nilai 0–5)', b.status ?? '—', `Nilai ${b.nilai != null ? b.nilai.toFixed(2).replace('.', ',') : '—'} · Sakit < 2,2 ≤ Kurang Sehat ≤ 2,8 < Sehat`, statusColor);
+  kpiBlock(s, 4.66, 1.85, 4.0, 'Pemulihan biaya', b.fcr == null ? '—' : b.fcr ? 'FCR' : 'Non FCR', `Tarif Rp${num(b.tarif)}/m³ · HPP Rp${num(b.hpp)}/m³`, b.fcr ? C.ok : C.warn);
+  kpiBlock(s, 8.82, 1.85, 4.0, 'Cakupan pelayanan teknis', pct(b.cakupan), `${num(b.pendudukTerlayani)} dari ${num(b.pendudukWilayah)} jiwa di wilayah pelayanan`, C.teal);
+  kpiBlock(s, 0.5, 3.6, 4.0, 'Pelanggan aktif (SR)', num(b.pelangganAktif), `dari ${num(b.pelangganTotal)} SR terdaftar`, C.ink);
+  kpiBlock(s, 4.66, 3.6, 4.0, 'Pendapatan operasi', rp(b.pendapatan), `Biaya operasi ${rp(b.biaya)}`, C.ink);
+  kpiBlock(s, 8.82, 3.6, 4.0, 'Laba bersih setelah pajak', rp(b.laba), b.pendapatan ? `Margin ${pct((b.laba / b.pendapatan) * 100)}` : null, b.laba >= 0 ? C.ok : C.rose);
+  s.addText(
+    'Cakupan dihitung terhadap penduduk di wilayah pelayanan BUMD, bukan seluruh penduduk kab/kota. Sumber: Data Kinerja BUMD Air Minum, Bappenas.',
+    { x: 0.5, y: 5.45, w: 12.3, h: 0.6, fontFace: FONT, fontSize: 11, color: C.ink2, italic: true },
+  );
+}
+
+export async function exportKabkotaPptx(kab, kel, clusterInfo, infra, logs, bumd = null) {
   const pptx = await newDeck(`Profil ${kab.kabkot}`);
 
   // ── Slide 1: overview ──
@@ -365,6 +395,8 @@ export async function exportKabkotaPptx(kab, kel, clusterInfo, infra, logs) {
       x: 0.5, y: 1.8, w: 12.3, h: 0.5, fontFace: FONT, fontSize: 12, color: C.ink3, italic: true,
     });
   }
+
+  if (bumd) addBumdSlide(pptx, kab, bumd);
 
   // ── Slide 3: infrastructure ──
   s = pptx.addSlide({ masterName: 'MASTER' });

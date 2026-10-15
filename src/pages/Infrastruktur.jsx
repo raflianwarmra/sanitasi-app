@@ -13,6 +13,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import ExportButtons from '../components/ExportButtons';
 import InfraDetailPanel from '../components/InfraDetailPanel';
 import Icon from '../components/Icon';
+import { useTheme, cssVar } from '../lib/theme';
 
 function hasRealCoords(infra) {
   return infra.lat != null && infra.lng != null && !isNaN(infra.lat) && !isNaN(infra.lng)
@@ -26,6 +27,7 @@ export default function Infrastruktur({ onNavigate }) {
   const { data: ipltData, loading: ipltLoading } = useIPLT();
   const { data: logs, reload: reloadLogs } = useLog();
   const { data: kabkotAll } = useKabkot();
+  const { theme } = useTheme();
   const [view, setView] = useState('ringkasan'); // ringkasan | aset | catatan
   const [filter, setFilter] = useState('Semua');
   const [statusFilter, setStatusFilter] = useState('Semua');
@@ -115,16 +117,16 @@ export default function Infrastruktur({ onNavigate }) {
     return out;
   }, [filtered]);
 
-  // ── Leaflet (CDN, lazy; map lives on the Ringkasan tab) ──
+  // ── Leaflet (bundled, lazy-loaded chunk; map lives on the Ringkasan tab) ──
+  // No third-party CDN at runtime: works on restricted office networks.
   useEffect(() => {
     if (window.L) return; // already loaded (state initialized lazily)
-    const link = document.createElement('link');
-    link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = () => setMapReady(true);
-    document.head.appendChild(script);
+    let alive = true;
+    Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([mod]) => {
+      window.L = mod.default ?? mod;
+      if (alive) setMapReady(true);
+    });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -149,19 +151,22 @@ export default function Infrastruktur({ onNavigate }) {
     markersLayer.current.clearLayers();
     const pts = [];
     mappable.forEach((infra) => {
-      const color = infra.isFunctioning ? '#2E7D53' : '#C23B3B';
+      const color = cssVar(infra.isFunctioning ? '--ok' : '--bad');
+      const ring = cssVar('--paper');
       let marker;
       if (infra.type === 'IPLT') {
         marker = window.L.marker([infra.lat, infra.lng], {
+          title: `${infra.type} ${infra.nama}`,
+          alt: `${infra.type} ${infra.nama}`,
           icon: window.L.divIcon({
             className: '',
-            html: `<span style="display:block;width:11px;height:11px;background:${color};border:1.5px solid white;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.35)"></span>`,
+            html: `<span style="display:block;width:11px;height:11px;background:${color};border:1.5px solid ${ring};border-radius:2px;box-shadow:0 1px 3px oklch(0% 0 0 / 0.35)"></span>`,
             iconSize: [11, 11], iconAnchor: [5.5, 5.5],
           }),
         }).addTo(markersLayer.current);
       } else {
         marker = window.L.circleMarker([infra.lat, infra.lng], {
-          radius: 6, fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
+          radius: 6, fillColor: color, color: ring, weight: 1.5, fillOpacity: 0.9,
         }).addTo(markersLayer.current);
       }
       marker.bindTooltip(
@@ -174,7 +179,7 @@ export default function Infrastruktur({ onNavigate }) {
     if (pts.length && (filterProv || filterKab)) {
       try { leafletMap.current.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); } catch { /* noop */ }
     }
-  }, [mapReady, mappable, filterProv, filterKab, view]);
+  }, [mapReady, mappable, filterProv, filterKab, view, theme]);
 
   // ── CSV export of the filtered list ──
   const handleCsv = () => {
@@ -211,15 +216,15 @@ export default function Infrastruktur({ onNavigate }) {
       />
 
       <PageHeader
-        kicker="Aset Air Limbah Domestik"
+        context="Aset air limbah domestik"
         title="Infrastruktur Sanitasi"
         meta={`${allInfra.length} unit · ${ipalData.length} IPAL · ${ipltData.length} IPLT · ${logs.length} catatan lapangan`}
         controls={<ExportButtons onCsv={handleCsv} csvLabel="Unduh CSV (terfilter)" />}
       />
 
-      {/* Filter bar */}
-      <div style={{ background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
-        <div className="page-wrap page-pad" style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filter toolbar */}
+      <div className="page-wrap page-pad">
+        <div className="card" role="search" aria-label="Filter infrastruktur" style={{ padding: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', overflow: 'visible' }}>
           <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: 260 }}>
             <Icon name="search" size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }} />
             <input
@@ -235,6 +240,7 @@ export default function Infrastruktur({ onNavigate }) {
             onChange={(v) => { setFilterProv(v); setFilterKab(''); }}
             options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiOptions.map((p) => ({ value: p, label: p }))]}
             placeholder="Semua Provinsi"
+            ariaLabel="Provinsi"
           />
           <SearchableSelect
             style={{ width: 185, maxWidth: '100%' }}
@@ -242,6 +248,7 @@ export default function Infrastruktur({ onNavigate }) {
             onChange={setFilterKab}
             options={[{ value: '', label: 'Semua Kab/Kota' }, ...kabkotOptions.map((k) => ({ value: k, label: k }))]}
             placeholder="Semua Kab/Kota"
+            ariaLabel="Kabupaten/kota"
           />
           <div className="seg" role="group" aria-label="Filter jenis">
             {['Semua', 'IPAL', 'IPLT'].map((t) => (
@@ -256,6 +263,7 @@ export default function Infrastruktur({ onNavigate }) {
           <span className="chip chip-accent" style={{ marginLeft: 'auto' }}>{filtered.length} unit</span>
           {activeFilters > 0 && (
             <button
+              type="button"
               className="btn btn-ghost btn-sm"
               onClick={() => { setFilterProv(''); setFilterKab(''); setFilter('Semua'); setStatusFilter('Semua'); setSearch(''); }}
             >
@@ -267,8 +275,8 @@ export default function Infrastruktur({ onNavigate }) {
       </div>
 
       {/* View tabs: Ringkasan / Aset / Catatan */}
-      <div style={{ background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
-        <div className="page-wrap page-pad" style={{ paddingTop: 10, paddingBottom: 10 }}>
+      <div>
+        <div className="page-wrap page-pad" style={{ paddingTop: 16 }}>
           <div className="seg" role="group" aria-label="Pilih tampilan">
             {[
               ['ringkasan', 'Ringkasan'],
@@ -293,7 +301,7 @@ export default function Infrastruktur({ onNavigate }) {
             {view === 'ringkasan' && (
               <>
                 <SectionCard title="Ringkasan Kondisi Aset" subtitle={filterProv ? `Cakupan filter: ${filterKab || filterProv}` : 'Cakupan: nasional'}>
-                  <p style={{ margin: '0 0 14px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--ink-2)', maxWidth: 640 }}>
+                  <p style={{ margin: '0 0 14px', fontSize: '0.84375rem', lineHeight: 1.6, color: 'var(--ink-2)', maxWidth: 640 }}>
                     {execSentence}
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
@@ -315,22 +323,18 @@ export default function Infrastruktur({ onNavigate }) {
                           <button
                             key={infra.id}
                             type="button"
+                            className="list-row"
                             onClick={() => setSelected(infra)}
-                            style={{
-                              all: 'unset', cursor: 'pointer', padding: '9px 11px',
-                              border: '1px solid var(--line-2)', borderRadius: 7, display: 'grid', gap: 5,
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                            style={{ display: 'grid', gap: 5, padding: '10px 12px', background: 'var(--paper-2)' }}
                           >
                             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                              <span className="chip" style={{ fontSize: 10 }}>{infra.type}</span>
-                              <span style={{ fontWeight: 600, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{infra.nama}</span>
-                              <span style={{ fontSize: 11.5, color: 'var(--ink-3)', marginLeft: 'auto', flexShrink: 0 }}>{infra.kabkot}</span>
+                              <span className="chip">{infra.type}</span>
+                              <span style={{ fontWeight: 600, fontSize: '0.78125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{infra.nama}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--ink-3)', marginLeft: 'auto', flexShrink: 0 }}>{infra.kabkot}</span>
                             </span>
                             <span style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                               {reasons.map((r) => (
-                                <span key={r} className={`chip ${r === 'Tidak berfungsi' ? 'chip-bad' : 'chip-warn'}`} style={{ fontSize: 10 }}>{r}</span>
+                                <span key={r} className={`chip ${r === 'Tidak berfungsi' ? 'chip-bad' : 'chip-warn'}`} style={{ fontSize: '0.71875rem' }}>{r}</span>
                               ))}
                             </span>
                           </button>
@@ -347,16 +351,16 @@ export default function Infrastruktur({ onNavigate }) {
                       ].map(([label, gaps]) => (
                         <div key={label}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                            <span className="num" style={{ fontSize: 22, fontWeight: 700, color: gaps.length ? 'var(--warn)' : 'var(--ok)' }}>{gaps.length}</span>
-                            <span style={{ fontSize: 12.5, fontWeight: 600 }}>{label}</span>
-                            <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>dari {kabScope.length}</span>
+                            <span className="num" style={{ fontSize: '1.375rem', fontWeight: 700, color: gaps.length ? 'var(--warn)' : 'var(--ok)' }}>{gaps.length}</span>
+                            <span style={{ fontSize: '0.78125rem', fontWeight: 600 }}>{label}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>dari {kabScope.length}</span>
                           </div>
                           {gaps.length > 0 && (
-                            <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxHeight: 88, overflowY: 'auto' }}>
+                            <div className="no-scrollbar" tabIndex={0} role="region" aria-label={`${label}: ${gaps.length} kab/kota`} style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxHeight: 88, overflowY: 'auto', borderRadius: 8 }}>
                               {gaps.slice(0, 40).map((k) => (
-                                <span key={k.kode} className="chip" style={{ fontSize: 10 }}>{k.kabkot}</span>
+                                <span key={k.kode} className="chip" style={{ fontSize: '0.71875rem' }}>{k.kabkot}</span>
                               ))}
-                              {gaps.length > 40 && <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>+{gaps.length - 40} lainnya</span>}
+                              {gaps.length > 40 && <span style={{ fontSize: '0.71875rem', color: 'var(--ink-3)' }}>+{gaps.length - 40} lainnya</span>}
                             </div>
                           )}
                         </div>
@@ -370,7 +374,7 @@ export default function Infrastruktur({ onNavigate }) {
                   title="Peta Infrastruktur"
                   pad={false}
                   actions={(
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 11, color: 'var(--ink-2)' }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: '0.71875rem', color: 'var(--ink-2)' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--ink-3)', display: 'inline-block' }} />IPAL
                       </span>
@@ -384,7 +388,7 @@ export default function Infrastruktur({ onNavigate }) {
                         <span className="dot" style={{ background: 'var(--bad)' }} />Nonaktif
                       </span>
                       {unmappedCount > 0 && (
-                        <span className="chip chip-warn" style={{ fontSize: 10 }}>{unmappedCount} tanpa koordinat</span>
+                        <span className="chip chip-warn" style={{ fontSize: '0.71875rem' }}>{unmappedCount} tanpa koordinat</span>
                       )}
                     </div>
                   )}
@@ -405,38 +409,38 @@ export default function Infrastruktur({ onNavigate }) {
                     >
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                         <div className="kpi" style={{ padding: 11 }}>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Total Unit</div>
-                          <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>{s.count}</div>
-                          <div style={{ fontSize: 11, marginTop: 2 }}>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', fontWeight: 500 }}>Total Unit</div>
+                          <div className="num" style={{ fontSize: '1.3125rem', fontWeight: 700 }}>{s.count}</div>
+                          <div style={{ fontSize: '0.71875rem', marginTop: 2 }}>
                             <span style={{ color: 'var(--ok)' }}>{s.func} berfungsi</span>
                             {' · '}
                             <span style={{ color: s.notFunc ? 'var(--bad)' : 'var(--ink-3)' }}>{s.notFunc} tidak</span>
                           </div>
                         </div>
                         <div className="kpi" style={{ padding: 11 }}>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Total Kapasitas</div>
-                          <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>
-                            {fmtNum(s.cap)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> m³</span>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', fontWeight: 500 }}>Total Kapasitas</div>
+                          <div className="num" style={{ fontSize: '1.3125rem', fontWeight: 700 }}>
+                            {fmtNum(s.cap)}<span style={{ fontSize: '0.75rem', color: 'var(--ink-3)', fontWeight: 500 }}> m³</span>
                           </div>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>Berfungsi: {fmtNum(s.capFunc)} m³</div>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', marginTop: 2 }}>Berfungsi: {fmtNum(s.capFunc)} m³</div>
                         </div>
                         <div className="kpi" style={{ padding: 11 }}>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Kapasitas Idle</div>
-                          <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>
-                            {fmtNum(s.idle)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> m³</span>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', fontWeight: 500 }}>Kapasitas Idle</div>
+                          <div className="num" style={{ fontSize: '1.3125rem', fontWeight: 700 }}>
+                            {fmtNum(s.idle)}<span style={{ fontSize: '0.75rem', color: 'var(--ink-3)', fontWeight: 500 }}> m³</span>
                           </div>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>Potensi: {fmtNum(s.idleServed)} {unit}</div>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', marginTop: 2 }}>Potensi: {fmtNum(s.idleServed)} {unit}</div>
                         </div>
                         <div className="kpi" style={{ padding: 11 }}>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>Cakupan Layanan</div>
-                          <div className="num" style={{ fontSize: 21, fontWeight: 700 }}>
-                            {fmtNum(s.served)}<span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}> {unit}</span>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', fontWeight: 500 }}>Cakupan Layanan</div>
+                          <div className="num" style={{ fontSize: '1.3125rem', fontWeight: 700 }}>
+                            {fmtNum(s.served)}<span style={{ fontSize: '0.75rem', color: 'var(--ink-3)', fontWeight: 500 }}> {unit}</span>
                           </div>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>{unitLong} terlayani</div>
+                          <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', marginTop: 2 }}>{unitLong} terlayani</div>
                         </div>
                       </div>
                       {s.lowUtil > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 11.5, color: 'var(--warn)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: '0.75rem', color: 'var(--warn)' }}>
                           <Icon name="alert" size={13} />
                           {s.lowUtil} unit dengan utilisasi &lt; 30%
                         </div>
@@ -479,14 +483,14 @@ export default function Infrastruktur({ onNavigate }) {
                             aria-selected={isSel || undefined}
                           >
                             <td style={{ fontWeight: 500 }}>{infra.nama}</td>
-                            <td><span className="chip" style={{ fontSize: 10.5 }}>{infra.type}</span></td>
+                            <td><span className="chip" style={{ fontSize: '0.71875rem' }}>{infra.type}</span></td>
                             <td style={{ color: 'var(--ink-2)' }}>{infra.kabkot}</td>
                             <td className="td-num">{infra.kapasitas != null ? fmtNum(infra.kapasitas) : '—'}</td>
                             <td className="td-num" style={util != null && util < 30 ? { color: 'var(--warn)', fontWeight: 600 } : undefined}>
                               {util != null ? fmtPct(util, 0) : '—'}
                             </td>
                             <td>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: st.color }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', fontWeight: 600, color: st.color }}>
                                 <span className="dot" style={{ background: st.color, width: 7, height: 7 }} />
                                 {st.label}
                               </span>
@@ -508,7 +512,7 @@ export default function Infrastruktur({ onNavigate }) {
                       )}
                       {filtered.length > 100 && (
                         <tr>
-                          <td colSpan={7} style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 11.5 }}>
+                          <td colSpan={7} style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: '0.75rem' }}>
                             +{filtered.length - 100} unit lainnya — persempit dengan filter, atau unduh CSV untuk daftar lengkap.
                           </td>
                         </tr>
@@ -533,18 +537,18 @@ export default function Infrastruktur({ onNavigate }) {
                     {logsFiltered.slice(0, 100).map((l) => (
                       <div key={l.id} style={{ padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: 7 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                          <span className="num" style={{ fontSize: 11.5, fontWeight: 600 }}>{l.tanggal || '—'}</span>
-                          {l.type && <span className="chip" style={{ fontSize: 10 }}>{l.type}</span>}
-                          <span style={{ fontSize: 12, fontWeight: 600 }}>{l.infrastruktur || '—'}</span>
-                          <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{l.kabkot}</span>
-                          {l.sumber && <span className="chip chip-accent" style={{ fontSize: 10, marginLeft: 'auto' }}>{l.sumber}</span>}
+                          <span className="num" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{l.tanggal || '—'}</span>
+                          {l.type && <span className="chip" style={{ fontSize: '0.71875rem' }}>{l.type}</span>}
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{l.infrastruktur || '—'}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>{l.kabkot}</span>
+                          {l.sumber && <span className="chip chip-accent" style={{ fontSize: '0.71875rem', marginLeft: 'auto' }}>{l.sumber}</span>}
                         </div>
-                        <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>{l.catatan}</div>
-                        {l.user && <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 4 }}>oleh {l.user}</div>}
+                        <div style={{ fontSize: '0.78125rem', lineHeight: 1.5 }}>{l.catatan}</div>
+                        {l.user && <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', marginTop: 4 }}>oleh {l.user}</div>}
                       </div>
                     ))}
                     {logsFiltered.length > 100 && (
-                      <div style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-3)', padding: 6 }}>
+                      <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-3)', padding: 6 }}>
                         +{logsFiltered.length - 100} catatan lainnya — persempit dengan filter.
                       </div>
                     )}

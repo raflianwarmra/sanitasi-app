@@ -1,34 +1,30 @@
 export default function LogCatatanList({ logs, emptyText = 'Belum ada catatan.' }) {
   if (!logs || logs.length === 0) {
-    return (
-      <div style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic', padding: '12px 0' }}>
-        {emptyText}
-      </div>
-    );
+    return <div className="text-caption" style={{ padding: '10px 0' }}>{emptyText}</div>;
   }
 
   const sorted = [...logs].sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)));
 
   return (
-    <div style={{ position: 'relative', paddingLeft: 26, maxHeight: 320, overflowY: 'auto' }} className="no-scrollbar">
-      <div style={{ position: 'absolute', left: 9, top: 0, bottom: 0, width: 2, background: 'var(--line)' }} />
+    <ol tabIndex={0} aria-label={`${sorted.length} catatan lapangan`} style={{ position: 'relative', listStyle: 'none', margin: 0, paddingLeft: 24, maxHeight: 320, overflowY: 'auto', borderRadius: 10 }} className="no-scrollbar">
+      <span aria-hidden="true" style={{ position: 'absolute', left: 8, top: 6, bottom: 6, width: 2, borderRadius: 1, background: 'var(--line)' }} />
       {sorted.map((log, i) => (
-        <div key={i} style={{ position: 'relative', paddingBottom: 14 }}>
-          <div style={{
-            position: 'absolute', left: -22, top: 3,
-            width: 12, height: 12, borderRadius: '50%',
+        <li key={i} style={{ position: 'relative', paddingBottom: 10 }}>
+          <span aria-hidden="true" style={{
+            position: 'absolute', left: -20, top: 12,
+            width: 10, height: 10, borderRadius: '50%',
             background: 'var(--paper)', border: '2px solid var(--accent)',
           }} />
-          <div className="card" style={{ padding: 10 }}>
+          <div className="inset inset-sm">
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontWeight: 600 }}>{log.tanggal || '—'}</span>
-              {log.sumber && <span className="chip chip-accent" style={{ fontSize: 10 }}>{log.sumber}</span>}
-              {log.user && <span style={{ fontSize: 10, color: 'var(--ink-3)', marginLeft: 'auto', fontFamily: 'JetBrains Mono' }}>oleh {log.user}</span>}
+              <span className="num" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{log.tanggal || '—'}</span>
+              {log.sumber && <span className="chip chip-accent">{log.sumber}</span>}
+              {log.user && <span className="text-caption2" style={{ marginLeft: 'auto' }}>oleh {log.user}</span>}
             </div>
-            <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink)' }}>{log.catatan}</div>
+            <div className="text-body">{log.catatan}</div>
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }

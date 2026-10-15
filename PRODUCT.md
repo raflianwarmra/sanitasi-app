@@ -7,7 +7,9 @@ register: product
 Sanitasi.id is a public-sector analytics dashboard for monitoring Indonesia's
 sanitation performance: access indicators (Layak, Aman, BABS), wastewater
 infrastructure (IPAL, IPLT), and local governance/regulation readiness
-(kelembagaan, cluster tata kelola) across 38 provinces and 514 kabupaten/kota.
+(kelembagaan, cluster tata kelola), and the condition of the local drinking
+water utility (BUMD Air Minum: kinerja, FCR, pelanggan, cakupan, pendapatan,
+laba) across 38 provinces and 514 kabupaten/kota.
 
 It is a working tool for program teams, not a marketing site. The data feeds
 directly into government coordination meetings, RPJMN target tracking, and
@@ -33,8 +35,9 @@ No marketing language, no decorative flourishes, no emoji.
 ## Anti-references
 
 - Generic SaaS dashboard templates (gradient hero metrics, icon-card grids).
-- "AI-generated" visual tells: purple/pink gradients, glassmorphism,
-  side-stripe accent borders, emoji icons.
+- "AI-generated" visual tells: purple/pink gradients, glassmorphism as
+  decoration (translucency is allowed only for functional chrome — see
+  DESIGN.md), side-stripe accent borders, emoji icons.
 - Consumer data-viz playfulness. This must be credible in a government
   meeting (Bappenas / Kementerian PUPR audience).
 
@@ -47,3 +50,7 @@ No marketing language, no decorative flourishes, no emoji.
    meeting-ready material (PPTX) without a backend.
 4. Resilient: the app reads live Google Sheets; any tab can fail without
    crashing the page.
+5. Honest vintage: every section names its source tab and year (e.g. BUMD =
+   Tahun Buku 2023); no global "data year" badge implies otherwise.
+6. Access gate is a soft gate, not security: the sheet is link-shared and the
+   site is static. Only a SHA-256 hash of the code ships.

@@ -26,6 +26,7 @@ jobs:
       - run: npm run build
         env:
           VITE_SCRIPT_URL: ${{ secrets.VITE_SCRIPT_URL }}
+          VITE_ACCESS_CODE_SHA256: ${{ secrets.VITE_ACCESS_CODE_SHA256 }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

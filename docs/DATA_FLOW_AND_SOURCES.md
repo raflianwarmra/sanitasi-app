@@ -19,8 +19,53 @@ Explains how the app reads from and writes to the single Google Sheet that power
 | `IPLT`                          | IPLT facility registry + coordinates             | `normalizeInfra('IPLT')`  |
 | `Log Catatan Infras`     | Field notes, user-appended via the app           | `normalizeLog`            |
 | `Team Member`                   | Dropdown source for the "User" field on catatan  | `normalizeTeam`           |
+| `BUMD Air Minum`                | Kinerja BUMD Air Minum per kab/kota (Kab/Kota page) | `normalizeBumd`        |
 
-Join key across the non-provinsi tabs is the BPS code in `Kode Kabupaten/Kota` (or `Kode` in the provinsi sheet).
+Join key across the non-provinsi tabs is the BPS code in `Kode Kabupaten/Kota` (or `Kode` in the provinsi sheet; `Kode BPS` in the BUMD tab).
+
+---
+
+## BUMD Air Minum tab
+
+Source: Bappenas "Data Kinerja BUMD AM 2024 (TB 2023)" workbook. That workbook
+has title rows, repeated headers and no BPS code, so it is converted to a
+clean tab rather than pasted:
+
+```
+python3 scripts/build_bumd_sheet.py "<Data Kinerja BUMD AM ...>.xlsx" BUMD_Air_Minum_TB2023.xlsx 2023
+```
+
+The script resolves **Kode BPS** for every row from `public/geo/` (the same 514
+codes the dashboard uses), with an alias list for renamed regencies
+(e.g. Pontianak → Mempawah, Maluku Tenggara Barat → Kepulauan Tanimbar). A
+BUMD serving a whole province carries several codes separated by `;` (PAM
+Jaya: `3101;3171;…;3175`, Lingkup = Provinsi). It refuses to write output if a
+row is unmatched, a code crosses provinces, or a code repeats.
+
+**Import:** in the Google Sheet, File → Import → Upload the generated .xlsx →
+*Insert new sheet(s)*. Keep the tab name **`BUMD Air Minum`**. Numbers are raw
+(rupiah, %, counts) — don't apply thousand-separator formats to them. Then copy
+the tab's `gid` from the URL (`#gid=…`) into `TAB_GIDS` in `src/lib/sheets.js`;
+until then the app reads it through the gviz-by-name fallback.
+
+| Column | Meaning |
+|---|---|
+| Kode BPS | join key (one or more 4-digit codes) |
+| Status Kinerja / Nilai Kinerja | Sehat (> 2,8) · Kurang Sehat (2,2–2,8) · Sakit (< 2,2), scale 0–5 |
+| FCR/Non FCR | Full Cost Recovery: average tariff ≥ HPP (Rp/m³) |
+| Pelanggan Aktif / Total (SR) | active / active + inactive connections |
+| Cakupan Pelayanan Teknis (%) | served population ÷ population **in the BUMD service area** (not the whole kab/kota) |
+| Pendapatan Operasi (Rp) | accrual operating revenue (water sales + non-water operating income) |
+| Tagihan / Penerimaan Rekening Air (Rp) | water bills issued / cash actually collected in the year |
+| Laba Bersih Setelah Pajak (Rp) | net profit after tax |
+
+### Number parsing
+
+Sheets export *displayed* values. `toNum()` accepts `27,01`, `27.01`,
+`1.470.818.051` and `1,470,818,051` (a repeated separator is a thousands
+separator; with both present, the last one is the decimal mark). A lone
+`8.654` is still read as a decimal — another reason the BUMD tab keeps raw
+numbers.
 
 ---
 

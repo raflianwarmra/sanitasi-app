@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { appendLog } from '../lib/sheets';
 import { useTeam } from '../hooks/useSheetData';
+import Icon from './Icon';
 
 export default function LogCatatanForm({ infra, onClose, onSuccess }) {
+  const fid = useId();
   const { data: team, loading: teamLoading } = useTeam();
   const todayIso = new Date().toISOString().slice(0, 10);
   const [tanggal, setTanggal] = useState(todayIso);
@@ -43,26 +45,27 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
 
   return (
     <form onSubmit={handleSubmit} style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 14 }}>
-        <div>
-          <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--accent)', letterSpacing: '0.08em' }}>TAMBAH CATATAN</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{infra.nama}</div>
-          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono' }}>
-            {infra.kabkot} · {infra.type}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8, marginBottom: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <h3 className="text-headline" style={{ margin: 0 }}>Tambah catatan</h3>
+          <div className="text-caption" style={{ marginTop: 2 }}>
+            {infra.nama} · {infra.kabkot} · {infra.type}
           </div>
         </div>
-        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-3)', lineHeight: 1 }}>×</button>
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Tutup form catatan" style={{ margin: '-6px -8px 0 0' }}>
+          <Icon name="x" size={18} />
+        </button>
       </div>
 
       <div style={{ display: 'grid', gap: 12 }}>
         <div>
-          <label className="field-label">Tanggal</label>
-          <input className="input" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+          <label className="field-label" htmlFor={`${fid}-tgl`}>Tanggal</label>
+          <input id={`${fid}-tgl`} className="input" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
         </div>
 
         <div>
-          <label className="field-label">Sumber Informasi</label>
-          <select className="input" value={sumber} onChange={(e) => setSumber(e.target.value)}>
+          <label className="field-label" htmlFor={`${fid}-sumber`}>Sumber informasi <span aria-hidden="true" style={{ color: 'var(--bad)' }}>*</span></label>
+          <select id={`${fid}-sumber`} required className="input" value={sumber} onChange={(e) => setSumber(e.target.value)}>
             <option value="">— Pilih sumber —</option>
             <option value="Laporan">Laporan</option>
             <option value="Monev">Monev</option>
@@ -71,12 +74,12 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
         </div>
 
         <div>
-          <label className="field-label">Petugas / User</label>
+          <label className="field-label" htmlFor={`${fid}-user`}>Petugas</label>
           {teamLoading ? (
-            <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)' }}>Memuat daftar Team Member…</div>
+            <div className="text-caption">Memuat daftar Team Member…</div>
           ) : hasTeam ? (
             <>
-              <select className="input" value={user} onChange={(e) => setUser(e.target.value)}>
+              <select id={`${fid}-user`} className="input" value={user} onChange={(e) => setUser(e.target.value)}>
                 <option value="">— Pilih dari Team Member —</option>
                 {team.map((m) => (
                   <option key={m.id} value={m.nama}>
@@ -88,6 +91,7 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
               {user === '__custom__' && (
                 <input
                   className="input"
+                  aria-label="Nama petugas"
                   style={{ marginTop: 6 }}
                   placeholder="Nama petugas"
                   value={userCustom}
@@ -97,6 +101,7 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
             </>
           ) : (
             <input
+              id={`${fid}-user`}
               className="input"
               placeholder="Nama petugas"
               value={userCustom}
@@ -106,8 +111,10 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
         </div>
 
         <div>
-          <label className="field-label">Catatan</label>
+          <label className="field-label" htmlFor={`${fid}-catatan`}>Catatan <span aria-hidden="true" style={{ color: 'var(--bad)' }}>*</span></label>
           <textarea
+            id={`${fid}-catatan`}
+            required
             className="input"
             rows={4}
             placeholder="Tuliskan catatan lapangan, temuan, atau tindakan..."
@@ -117,17 +124,18 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
           />
         </div>
 
-        <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--ink-3)', background: 'var(--line-2)', padding: '8px 10px', borderRadius: 4 }}>
-          → Disimpan ke Google Sheet · "Log Catatan Infras"
+        <div className="inset inset-sm text-caption">
+          Disimpan ke Google Sheet, tab "Log Catatan Infras".
           {!import.meta.env.VITE_SCRIPT_URL && (
-            <div style={{ color: 'var(--warn)', marginTop: 4 }}>
-              ⚠ VITE_SCRIPT_URL belum di-set — catatan hanya tersimpan di sesi ini.
+            <div style={{ color: 'var(--warn)', marginTop: 4, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <Icon name="alert" size={13} style={{ marginTop: 2 }} />
+              VITE_SCRIPT_URL belum di-set: catatan hanya tersimpan di sesi ini.
             </div>
           )}
         </div>
 
         {saveError && (
-          <div style={{ fontSize: 11, color: 'var(--bad)', fontFamily: 'JetBrains Mono' }}>
+          <div role="alert" className="text-caption" style={{ color: 'var(--bad)' }}>
             Gagal menyimpan: {saveError}
           </div>
         )}
@@ -137,9 +145,9 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
           <button
             type="submit" className="btn btn-accent"
             disabled={!sumber || !catatan.trim() || saving}
-            style={{ opacity: (!sumber || !catatan.trim() || saving) ? 0.5 : 1 }}
+            aria-busy={saving}
           >
-            {saving ? 'Menyimpan...' : 'Simpan Catatan'}
+            {saving ? 'Menyimpan…' : 'Simpan catatan'}
           </button>
         </div>
       </div>
