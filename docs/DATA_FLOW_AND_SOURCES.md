@@ -44,9 +44,9 @@ row is unmatched, a code crosses provinces, or a code repeats.
 
 **Import:** in the Google Sheet, File → Import → Upload the generated .xlsx →
 *Insert new sheet(s)*. Keep the tab name **`BUMD Air Minum`**. Numbers are raw
-(rupiah, %, counts) — don't apply thousand-separator formats to them. Then copy
-the tab's `gid` from the URL (`#gid=…`) into `TAB_GIDS` in `src/lib/sheets.js`;
-until then the app reads it through the gviz-by-name fallback.
+(rupiah, %, counts) — don't apply thousand-separator formats to them. The tab's
+`gid` (currently `547087676`) is registered in `TAB_GIDS` in `src/lib/sheets.js`;
+if the tab is ever deleted and re-imported, update that number.
 
 | Column | Meaning |
 |---|---|

@@ -35,8 +35,7 @@ const TAB_GIDS = {
   'Ladder Nasional':        1586846199,
   'Ladder Provinsi':        620466446,
   'Ladder Kabupaten/Kota':  635331547,
-  // 'BUMD Air Minum': <gid>,  ← add the tab's gid (from its URL, #gid=…) once
-  // the tab exists; until then it is read through the gviz-by-name fallback.
+  'BUMD Air Minum':         547087676,
 };
 
 function csvUrl(sheet) {
@@ -122,6 +121,15 @@ export function toNum(v) {
   }
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
+}
+
+// Coordinates in the IPAL/IPLT tabs are often stored as comma-grouped digits
+// with the decimal point lost: "4,308,356" = 4.308356, "544,789" = 0.544789,
+// "98,078,881" = 98.078881 (6 decimals). Anything else parses normally.
+export function toCoord(v) {
+  const s = String(v ?? '').trim();
+  if (/^-?\d{1,3}(,\d{3})+$/.test(s)) return Number(s.replace(/,/g, '')) / 1e6;
+  return toNum(s);
 }
 
 // Fuzzy pick — returns the first non-empty value where the key *contains* any of the substrings.
@@ -220,8 +228,8 @@ export function normalizeInfra(raw, type) {
     const statusText = pick(r, 'status keberfungsian', 'keberfungsian', 'status');
     const status = String(statusText).toLowerCase();
     const isFunctioning = !!status && !status.includes('tidak') && !status.includes('non');
-    const lat = toNum(pick(r, 'latitude', 'lat'));
-    const lng = toNum(pick(r, 'longitude', 'lng', 'long'));
+    const lat = toCoord(pick(r, 'latitude', 'lat'));
+    const lng = toCoord(pick(r, 'longitude', 'lng', 'long'));
     const nama = pick(r, 'infrastruktur', 'nama');
     return {
       id: `${type}-${idx}`,
