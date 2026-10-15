@@ -1,30 +1,13 @@
-// Page identity band: title first, then a context line (scope · island ·
-// meta), right-aligned controls, and an optional hero extension (children —
-// e.g. the KPI card row) sharing the same island-themed background.
-//
-// The island treatment is the container's OWN background (color + a
-// vertical gradient + an SVG-tile background-image) — never an absolutely
-// positioned overlay. It fades vertically into islandPageBackground's top
-// tone, so hero and page read as one continuous surface.
-
-import { motifTileUri, PAGE_TOP_MIX, MOTIF_OPACITY } from '../lib/islandTheme';
+// Page identity band: large title first, then a context line (island ·
+// scope · meta), right-aligned controls, and an optional hero extension
+// (children — e.g. the KPI card row). Transparent: it sits on the page's
+// own background (the island glow comes from islandPageBackground).
 
 export default function PageHeader({ context, title, titleExtra, meta, controls, island, children }) {
-  const heroStyle = island
-    ? {
-        backgroundColor: `color-mix(in oklch, ${island.accent} 22%, var(--bg-base))`,
-        backgroundImage: [
-          motifTileUri(island, MOTIF_OPACITY),
-          `linear-gradient(180deg, transparent 0%, transparent 45%, color-mix(in oklch, ${island.accent} ${PAGE_TOP_MIX}%, var(--bg-base)) 100%)`,
-        ].join(', '),
-        transition: 'background-color var(--dur-2) var(--ease-out)',
-      }
-    : { background: 'transparent' };
-
   return (
-    <div style={heroStyle}>
+    <div>
       <div className="page-wrap page-pad" style={{
-        paddingTop: 22, paddingBottom: children ? 16 : 22,
+        paddingTop: 20, paddingBottom: children ? 20 : 28,
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         flexWrap: 'wrap', gap: 16,
       }}>
@@ -38,7 +21,7 @@ export default function PageHeader({ context, title, titleExtra, meta, controls,
           {(context || island || meta) && (
             <div className="text-body" style={{ color: 'var(--ink-2)', marginTop: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 8px' }}>
               {island && (
-                <span className="chip" style={{ background: `color-mix(in oklch, ${island.accent} 82%, black)`, color: 'oklch(98% 0.005 230)', fontWeight: 600 }}>
+                <span className="chip" style={{ background: `color-mix(in srgb, ${island.accent} 82%, black)`, color: '#fff' }}>
                   {island.name}
                 </span>
               )}
@@ -55,7 +38,7 @@ export default function PageHeader({ context, title, titleExtra, meta, controls,
         )}
       </div>
       {children && (
-        <div className="page-wrap page-pad" style={{ paddingBottom: 24 }}>
+        <div className="page-wrap page-pad" style={{ paddingBottom: 28 }}>
           {children}
         </div>
       )}

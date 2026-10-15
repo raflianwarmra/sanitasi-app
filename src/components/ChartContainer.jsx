@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 
-// House chart motion + type: short critically-damped-feeling ease-out (state
-// change, not choreography), none at all under reduced motion; the UI's
-// system font so canvas text matches the page.
+// House chart defaults — adjusted in place (never replacing Chart.js's own
+// default objects): short ease-out, no animation under reduced motion,
+// rounded bars, 11px minimum tick text.
 const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-Chart.defaults.animation = reduceMotion ? false : { duration: 260, easing: 'easeOutQuart' };
-Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, sans-serif';
+Chart.defaults.animation.duration = reduceMotion ? 0 : 400;
 Chart.defaults.font.size = 11;
+Chart.defaults.elements.bar.borderRadius = 6;
 
 // Owns the canvas lifecycle: builds the Chart.js instance and guarantees
 // destroy() on re-render/unmount (prevents canvas reuse leaks).
@@ -29,13 +29,16 @@ export default function ChartContainer({ height = 240, build, deps = [], ariaLab
   );
 }
 
-// HTML legend (screen-reader friendly, unlike canvas legends).
+// HTML legend (screen-reader friendly, unlike canvas legends). `line: true`
+// draws a dashed swatch for reference lines.
 export function ChartLegend({ items, style }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', ...style }}>
-      {items.map(({ color, label, value }) => (
+      {items.map(({ color, label, value, line }) => (
         <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--ink-2)' }}>
-          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
+          {line
+            ? <span aria-hidden="true" style={{ width: 12, height: 0, borderTop: `2px dashed ${color}`, flexShrink: 0 }} />
+            : <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />}
           {label}
           {value != null && <strong className="num" style={{ color: 'var(--ink)' }}>{value}</strong>}
         </span>

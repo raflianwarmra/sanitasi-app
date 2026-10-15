@@ -89,12 +89,11 @@ export function motifTileUri(island, opacity = 0.4) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-// Full-page island backdrop: bold tint at the top softening toward the
-// bottom, with the motif as a texture across the whole page. Shares the
-// exact color ramp and motif opacity with PageHeader's hero so the two
-// connect as one continuous surface (no left/right split, no seam).
-// Applied as the page root's own background (no overlays); cards float
-// on top with their solid paper fill.
+// Full-page island backdrop: a soft glow of the island color behind the
+// header that fades into the neutral Apple-gray canvas — no pattern texture
+// (the motif tiles remain available but are no longer used on pages).
+// Applied as the page root's own background (no overlays); cards float on
+// top with their solid paper fill.
 export const PAGE_TOP_MIX = 18;
 export const PAGE_BOTTOM_MIX = 8;
 export const MOTIF_OPACITY = 0.22;
@@ -102,12 +101,8 @@ export const MOTIF_OPACITY = 0.22;
 export function islandPageBackground(island) {
   return {
     backgroundColor: 'var(--bg)',
-    backgroundImage: [
-      motifTileUri(island, MOTIF_OPACITY),
-      `linear-gradient(180deg, color-mix(in oklch, ${island.accent} ${PAGE_TOP_MIX}%, var(--bg-base)), color-mix(in oklch, ${island.accent} ${PAGE_BOTTOM_MIX}%, var(--bg-base)))`,
-    ].join(', '),
-    backgroundRepeat: 'repeat, no-repeat',
-    backgroundSize: 'auto, 100% 100%',
-    transition: 'background-color 0.25s ease-out',
+    backgroundImage: `radial-gradient(120% 520px at 50% -160px, color-mix(in srgb, ${island.accent} ${PAGE_TOP_MIX}%, transparent), transparent 75%)`,
+    backgroundRepeat: 'no-repeat',
+    transition: 'background-color var(--dur-2) ease-out',
   };
 }
