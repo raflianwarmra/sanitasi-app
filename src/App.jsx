@@ -1,10 +1,13 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import TopNav from './components/TopNav';
 import Landing from './pages/Landing';
-import Provinsi from './pages/Provinsi';
-import Infrastruktur from './pages/Infrastruktur';
-import KabKota from './pages/KabKota';
 import AccessGate from './components/AccessGate';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Data pages load on demand: the home page ships without Chart.js/maps.
+const Provinsi = lazy(() => import('./pages/Provinsi'));
+const Infrastruktur = lazy(() => import('./pages/Infrastruktur'));
+const KabKota = lazy(() => import('./pages/KabKota'));
 
 function currentPath() {
   return window.location.hash.replace(/^#/, '') || '/';
@@ -50,8 +53,18 @@ export default function App() {
   return (
     <AccessGate>
       <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        {/* Hash routing owns location.hash, so move focus without touching it. */}
+        <a
+          href="#main"
+          className="skip-link"
+          onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}
+        >
+          Lewati ke konten
+        </a>
         <TopNav active={navActive} onNavigate={navigate} />
 
+        <main id="main" tabIndex={-1} style={{ outline: 'none' }}>
+        <Suspense fallback={<LoadingSpinner text="Memuat halaman…" />}>
         {page === 'landing'    && <Landing onNavigate={navigate} />}
         {page === 'provinsi'   && <Provinsi onNavigate={navigate} />}
         {page === 'infra'      && <Infrastruktur onNavigate={navigate} />}
@@ -62,6 +75,8 @@ export default function App() {
             initialKode={search.kode ? decodeURIComponent(search.kode) : ''}
           />
         )}
+        </Suspense>
+        </main>
       </div>
     </AccessGate>
   );

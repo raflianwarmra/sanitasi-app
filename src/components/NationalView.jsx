@@ -13,6 +13,7 @@ import ProvinceKabkotMap from './ProvinceKabkotMap';
 import { ladderColor } from '../lib/ladder';
 import EmptyState from './EmptyState';
 import Icon from './Icon';
+import { rowLinkProps } from '../hooks/useOverlay';
 
 function natChartOpts() {
   return {
@@ -20,8 +21,8 @@ function natChartOpts() {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      y: { beginAtZero: true, grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 10 }, color: cssVar('--ink-3') } },
-      x: { grid: { display: false }, ticks: { font: { size: 9 }, color: cssVar('--ink-3') } },
+      y: { beginAtZero: true, grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 11 }, color: cssVar('--ink-3') } },
+      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: cssVar('--ink-3') } },
     },
   };
 }
@@ -78,17 +79,17 @@ export default function NationalView({
   const yearsLbl = NAT_YEARS.map(String);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
+    <div className="stack">
 
       {/* Interpretation + diversity band */}
       <SectionCard title="Ringkasan Nasional · 2025" subtitle='Sumber: sheet "Nasional" (BPS)'>
-        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: 'var(--ink-2)', maxWidth: 640 }}>
+        <p className="text-lead" style={{ margin: 0, maxWidth: '68ch' }}>
           {interpretasi}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14, alignItems: 'center' }}>
           <span className="section-label" style={{ marginRight: 4 }}>Tujuh Wilayah Kepulauan</span>
           {Object.values(ISLANDS).map((isl) => (
-            <span key={isl.id} className="chip" style={{ fontSize: 10.5, gap: 6 }} title={isl.note}>
+            <span key={isl.id} className="chip" title={isl.note}>
               <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 3, background: isl.accent, display: 'inline-block' }} />
               {isl.name}
             </span>
@@ -177,8 +178,8 @@ export default function NationalView({
                 options: {
                   responsive: true, maintainAspectRatio: false,
                   scales: {
-                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 }, color: cssVar('--ink-3') } },
-                    y: { stacked: true, max: 100, grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 10 }, color: cssVar('--ink-3') } },
+                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: cssVar('--ink-3') } },
+                    y: { stacked: true, max: 100, grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 11 }, color: cssVar('--ink-3') } },
                   },
                   plugins: {
                     legend: { display: false },
@@ -228,15 +229,13 @@ export default function NationalView({
                   <Icon name={icon} size={12} style={{ color }} />
                   {label}
                 </div>
-                <div style={{ display: 'grid', gap: 4, maxWidth: 320 }}>
+                <div style={{ display: 'grid', gap: 2, maxWidth: 340 }}>
                   {rows.map((r) => (
                     <button
                       key={r.kode}
                       type="button"
+                      className="list-row"
                       onClick={() => onOpenProvince(r.kode)}
-                      style={{ all: 'unset', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, padding: '5px 8px', borderRadius: 5 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.kabkot}</span>
                       <span className="num" style={{ fontWeight: 600 }}>{fmtPct(r[metricDef.key], 1)}</span>
@@ -278,7 +277,7 @@ export default function NationalView({
                 const isl = islandOf(r.kode);
                 const babsHi = (r.babs2025 ?? 0) > 10;
                 return (
-                  <tr key={r.kode} onClick={() => onOpenProvince(r.kode)} style={{ cursor: 'pointer' }}>
+                  <tr key={r.kode} {...rowLinkProps(() => onOpenProvince(r.kode))}>
                     <td style={{ fontWeight: 500 }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                         {isl && <span aria-hidden="true" title={isl.name} style={{ width: 8, height: 8, borderRadius: 2, background: isl.accent, flexShrink: 0 }} />}

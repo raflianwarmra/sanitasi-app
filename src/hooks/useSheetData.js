@@ -4,7 +4,7 @@ import {
   normalizeProvinsi, normalizeKabkot, normalizeKelembagaan,
   normalizeInfra, normalizeLog, normalizeTeam,
   normalizeNasional, normalizeLadderNasional,
-  normalizeLadderProvinsi, normalizeLadderKabkot,
+  normalizeLadderProvinsi, normalizeLadderKabkot, normalizeBumd,
 } from '../lib/sheets';
 
 export function useSheetData(sheetName, normalizer) {
@@ -59,3 +59,4 @@ export function useNasional()    { return useSheetData(SHEET_GIDS.NASIONAL, norm
 export function useLadderNasional() { return useSheetData(SHEET_GIDS.LADDER_NAS, normalizeLadderNasional); }
 export function useLadderProvinsi() { return useSheetData(SHEET_GIDS.LADDER_PROV, normalizeLadderProvinsi); }
 export function useLadderKabkot()   { return useSheetData(SHEET_GIDS.LADDER_KAB, normalizeLadderKabkot); }
+export function useBumd()           { return useSheetData(SHEET_GIDS.BUMD, normalizeBumd); }

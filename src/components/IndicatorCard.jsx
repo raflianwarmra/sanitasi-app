@@ -13,12 +13,12 @@ export default function IndicatorCard({
   return (
     <SectionCard title={title} pad>
       <div style={{ paddingBottom: 10, borderBottom: '1px solid var(--line-2)', marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>{currentLabel}</div>
-        <div className="num" style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.15, color: tone }}>
+        <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', fontWeight: 500 }}>{currentLabel}</div>
+        <div className="num" style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.15, color: tone }}>
           {current != null ? fmtPct(current) : '—'}
         </div>
         {(target != null || note) && (
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--ink-3)', marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--ink-3)', marginTop: 4 }}>
             {target != null && (
               <span>
                 {targetLabel}: <strong className="num" style={{ color: 'var(--ink-2)' }}>{fmtPct(target, 1)}</strong>

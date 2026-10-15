@@ -56,7 +56,7 @@ function RankedFallback({ kabs, metricDef, onOpenProfile }) {
             style={{
               all: 'unset', cursor: 'pointer', display: 'grid',
               gridTemplateColumns: '24px minmax(90px, 160px) 1fr 60px',
-              alignItems: 'center', gap: 10, fontSize: 12, padding: '3px 6px', borderRadius: 5,
+              alignItems: 'center', gap: 10, fontSize: '0.75rem', padding: '3px 6px', borderRadius: 5,
             }}
           >
             <span className="num" style={{ color: 'var(--ink-3)' }}>{i + 1}</span>
@@ -199,9 +199,9 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
             background: 'var(--paper)', border: '1px solid var(--line)',
             borderRadius: 7, boxShadow: 'var(--shadow-pop)', padding: '9px 11px', width: 180,
           }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 4 }}>{hoverKab?.kabkot ?? hoverShape.nama}</div>
+            <div style={{ fontSize: '0.78125rem', fontWeight: 600, marginBottom: 4 }}>{hoverKab?.kabkot ?? hoverShape.nama}</div>
             {hoverKab ? (
-              <div style={{ display: 'grid', gap: 2, fontSize: 11.5, color: 'var(--ink-2)' }}>
+              <div style={{ display: 'grid', gap: 2, fontSize: '0.75rem', color: 'var(--ink-2)' }}>
                 <span>Aman <strong className="num">{fmtPct(hoverKab.aman2025, 1)}</strong></span>
                 <span>Layak <strong className="num">{fmtPct(hoverKab.layak2025, 1)}</strong></span>
                 <span>BABS <strong className="num">{fmtPct(hoverKab.babs2025, 1)}</strong></span>
@@ -212,7 +212,7 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
                 )}
               </div>
             ) : (
-              <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Data tidak tersedia</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>Data tidak tersedia</div>
             )}
           </div>
         )}
@@ -222,12 +222,12 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', alignItems: 'center', padding: '10px 4px 0' }}>
         <span className="section-label">{metricDef.label} 2025</span>
         {legendLabels(metricDef.thresholds).map((lbl, i) => (
-          <span key={lbl} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--ink-2)' }}>
+          <span key={lbl} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.71875rem', color: 'var(--ink-2)' }}>
             <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: metricDef.ramp[i], border: '1px solid var(--line)' }} />
             {lbl}
           </span>
         ))}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--ink-3)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.71875rem', color: 'var(--ink-3)' }}>
           <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: NO_DATA, border: '1px solid var(--line)' }} />
           Tanpa data
         </span>
@@ -241,14 +241,14 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
           display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 18px',
         }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600 }}>{selKab.kabkot}</div>
+            <div style={{ fontSize: '0.84375rem', fontWeight: 600 }}>{selKab.kabkot}</div>
             {ranks.map.get(String(selKab.kode)) && (
-              <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>
                 Peringkat {metricDef.label} ke-{ranks.map.get(String(selKab.kode))} dari {ranks.total}
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--ink-2)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 16, fontSize: '0.75rem', color: 'var(--ink-2)', flexWrap: 'wrap' }}>
             <span>Aman <strong className="num" style={{ color: 'var(--viz-aman)' }}>{fmtPct(selKab.aman2025, 1)}</strong></span>
             <span>Layak <strong className="num" style={{ color: 'var(--viz-layak)' }}>{fmtPct(selKab.layak2025, 1)}</strong></span>
             <span>BABS <strong className="num" style={{ color: 'var(--viz-babs)' }}>{fmtPct(selKab.babs2025, 1)}</strong></span>
@@ -263,7 +263,7 @@ export default function ProvinceKabkotMap({ provKode, kabs, metric = 'aman', onO
         </div>
       )}
       {!selKab && (
-        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', padding: '8px 4px 0' }}>
+        <div style={{ fontSize: '0.75rem', color: 'var(--ink-3)', padding: '8px 4px 0' }}>
           Arahkan kursor untuk detail · klik wilayah untuk memilih, lalu buka profil kab/kota.
         </div>
       )}

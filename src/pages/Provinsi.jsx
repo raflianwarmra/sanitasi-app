@@ -23,6 +23,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import SearchableSelect from '../components/SearchableSelect';
 import Icon from '../components/Icon';
+import { rowLinkProps } from '../hooks/useOverlay';
 
 const YEARS = [2022, 2023, 2024, 2025];
 const NATIONAL_KEY = '__nasional__';
@@ -36,8 +37,8 @@ function baseChartOpts() {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      y: { beginAtZero: true, grid: { color: grid }, ticks: { font: { size: 10 }, color: tick } },
-      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: tick } },
+      y: { beginAtZero: true, grid: { color: grid }, ticks: { font: { size: 11 }, color: tick } },
+      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: tick } },
     },
   };
 }
@@ -274,7 +275,7 @@ export default function Provinsi({ onNavigate }) {
       />
 
       <PageHeader
-        kicker={isNational ? 'Profil Sanitasi Nasional' : 'Profil Sanitasi Provinsi'}
+        context={isNational ? 'Profil sanitasi nasional' : 'Profil sanitasi provinsi'}
         title={isNational ? 'Indonesia' : selectedProv.provinsi}
         island={island}
         meta={isNational
@@ -289,6 +290,7 @@ export default function Provinsi({ onNavigate }) {
               options={selectOptions}
               sortOptions={false}
               placeholder="Pilih provinsi"
+              ariaLabel="Wilayah"
             />
             <ExportButtons onCsv={handleCsv} onPptx={handlePptx} />
           </>
@@ -366,7 +368,7 @@ export default function Provinsi({ onNavigate }) {
         )}
       </PageHeader>
 
-      <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40 }}>
+      <div className="page-wrap page-pad" style={{ paddingTop: 8, paddingBottom: 48 }}>
         {isNational ? (
           <NationalView
             provinces={sorted}
@@ -379,7 +381,7 @@ export default function Provinsi({ onNavigate }) {
             onOpenProvince={(kode) => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); }}
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
+          <div className="stack">
 
             {/* Tangga sanitasi (real ladder data) */}
             <SectionCard
@@ -420,18 +422,13 @@ export default function Provinsi({ onNavigate }) {
                         <Icon name={icon} size={12} style={{ color }} />
                         {label}
                       </div>
-                      <div style={{ display: 'grid', gap: 4, maxWidth: 320 }}>
+                      <div style={{ display: 'grid', gap: 2, maxWidth: 340 }}>
                         {rows.map((k) => (
                           <button
                             key={k.kode || k.kabkot}
                             type="button"
+                            className="list-row"
                             onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)}
-                            style={{
-                              all: 'unset', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
-                              gap: 10, fontSize: 12.5, padding: '5px 8px', borderRadius: 5,
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.kabkot}</span>
                             <span className="num" style={{ fontWeight: 600 }}>{fmtPct(k[metricDef.key], 1)}</span>
@@ -457,8 +454,8 @@ export default function Provinsi({ onNavigate }) {
             {/* Priority issue cards */}
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>Isu Prioritas</h2>
-                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Klik kab/kota untuk membuka profil</span>
+                <h2 className="text-headline" style={{ margin: 0 }}>Isu Prioritas</h2>
+                <span className="text-caption">Klik kab/kota untuk membuka profil</span>
               </div>
               <PriorityIssueCards
                 kabsNoIPLT={kabsNoIPLT}
@@ -468,9 +465,9 @@ export default function Provinsi({ onNavigate }) {
               />
               {brokenUnits.length > 0 && (
                 <SectionCard style={{ marginTop: 16 }} title={`${brokenUnits.length} unit IPAL/IPLT tidak berfungsi`} subtitle="Perlu tindak lanjut operasional">
-                  <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflowY: 'auto' }}>
+                  <div className="no-scrollbar" tabIndex={0} role="region" aria-label="Daftar unit tidak berfungsi" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflowY: 'auto', borderRadius: 8 }}>
                     {brokenUnits.map((u) => (
-                      <span key={u.id} className="chip chip-warn" style={{ fontSize: 10.5 }}>{u.type} · {u.nama}{u.kabkot ? ` (${u.kabkot})` : ''}</span>
+                      <span key={u.id} className="chip chip-warn">{u.type} · {u.nama}{u.kabkot ? ` (${u.kabkot})` : ''}</span>
                     ))}
                   </div>
                 </SectionCard>
@@ -498,13 +495,7 @@ export default function Provinsi({ onNavigate }) {
                           className={num ? 'td-num' : undefined}
                           aria-sort={sortBy === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
                         >
-                          <button
-                            onClick={() => onSort(k)}
-                            style={{
-                              all: 'unset', cursor: 'pointer', font: 'inherit', color: 'inherit',
-                              textTransform: 'inherit', letterSpacing: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
-                            }}
-                          >
+                          <button type="button" className="th-sort" onClick={() => onSort(k)}>
                             {l}
                             {sortBy === k && <Icon name={sortDir === 'asc' ? 'arrowUp' : 'arrowDown'} size={11} />}
                           </button>
@@ -516,7 +507,7 @@ export default function Provinsi({ onNavigate }) {
                     {tableRows.map((k) => {
                       const babsHi = (k.babs2025 ?? 0) > 10;
                       return (
-                        <tr key={k.kode || k.kabkot} onClick={() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`)} style={{ cursor: 'pointer' }}>
+                        <tr key={k.kode || k.kabkot} {...rowLinkProps(() => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(k.kode)}`))}>
                           <td style={{ fontWeight: 500 }}>{k.kabkot}</td>
                           <td className="td-num">{fmtPct(k.aman2025)}</td>
                           <td className="td-num">{fmtPct(k.layak2025)}</td>

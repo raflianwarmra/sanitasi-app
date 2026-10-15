@@ -19,10 +19,10 @@ function IssueCard({ tone, count, title, threshold, items, onOpen, emptyText }) 
           }}>
             <Icon name="alert" size={17} />
           </span>
-          <div className="num" style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color }}>{count}</div>
+          <div className="num" style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1, color }}>{count}</div>
         </div>
-        <h3 style={{ fontSize: 13.5, fontWeight: 600, margin: '10px 0 2px' }}>{title}</h3>
-        <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{threshold}</div>
+        <h3 style={{ fontSize: '0.84375rem', fontWeight: 600, margin: '10px 0 2px' }}>{title}</h3>
+        <div style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>{threshold}</div>
       </div>
       <div style={{ padding: 8, overflowY: 'auto', maxHeight: 250, flexGrow: 1 }}>
         {items.length === 0 ? (
@@ -31,16 +31,8 @@ function IssueCard({ tone, count, title, threshold, items, onOpen, emptyText }) 
           <button
             key={it.kode || it.label}
             type="button"
+            className="list-row"
             onClick={() => onOpen(it)}
-            style={{
-              all: 'unset', boxSizing: 'border-box', cursor: 'pointer', display: 'flex',
-              justifyContent: 'space-between', alignItems: 'center', gap: 10,
-              width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 6, fontSize: 12.5,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            onFocus={(e) => { e.currentTarget.style.background = 'var(--paper-2)'; }}
-            onBlur={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>

@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot, useNasional } from '../hooks/useSheetData';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { usePresence, useFocusTrap, rowLinkProps } from '../hooks/useOverlay';
+import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot, useNasional, useBumd } from '../hooks/useSheetData';
 import { useTheme } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
@@ -16,6 +17,8 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
+import BumdCard from '../components/BumdCard';
+import { findBumd } from '../lib/bumd';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter, rawClusterLetter } from '../lib/cluster';
 import { islandOf, islandPageBackground } from '../lib/islandTheme';
 import { loadPref, savePref } from '../lib/persist';
@@ -36,7 +39,7 @@ function AksesCard({ kab, theme, ladderRungs }) {
   const babs = kab.babs2025 ?? 0;
   return (
     <SectionCard title="Akses Sanitasi · 2025" subtitle='Sumber: sheet "Akses Kabkot" & "Ladder Kabupaten/Kota" (BPS)'>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 }}>
         <MetricCard label="Akses Layak" value={kab.layak2025 != null ? fmtPct(kab.layak2025) : null} tone="layak" />
         <MetricCard label="Akses Aman" value={kab.aman2025 != null ? fmtPct(kab.aman2025) : null} tone="aman" />
         <MetricCard label="BABS Terbuka" value={kab.babs2025 != null ? fmtPct(kab.babs2025) : null} tone={babs > 10 ? 'bad' : 'babs'} />
@@ -68,12 +71,12 @@ function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
       )}
 
       {Object.entries(byType).map(([type, items]) => (
-        <div key={type} style={{ marginBottom: 14, border: '1px solid var(--line-2)', borderRadius: 7, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--line-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--paper-2)' }}>
-            <span style={{ fontWeight: 600, fontSize: 12.5 }}>{type === 'IPAL' ? 'IPAL — Air Limbah Domestik' : 'IPLT — Lumpur Tinja'}</span>
-            <span className="chip" style={{ fontSize: 10.5 }}>{items.length} unit</span>
+        <div key={type} style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span className="section-label">{type === 'IPAL' ? 'IPAL — Air Limbah Domestik' : 'IPLT — Lumpur Tinja'}</span>
+            <span className="chip">{items.length} unit</span>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll" style={{ margin: '0 -14px' }}>
             <table className="data-table" style={{ minWidth: 620 }}>
               <thead>
                 <tr>
@@ -90,20 +93,13 @@ function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
                   const util = infra.kapasitas && infra.kapasitasTerpakai ? (infra.kapasitasTerpakai / infra.kapasitas) * 100 : null;
                   const n = logs.filter((l) => l.infrastruktur && l.infrastruktur.toLowerCase() === infra.nama.toLowerCase()).length;
                   return (
-                    <tr
-                      key={i}
-                      tabIndex={0}
-                      onClick={() => onOpenInfra(infra)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenInfra(infra); } }}
-                      style={{ cursor: 'pointer' }}
-                      aria-label={`Buka detail ${infra.nama}`}
-                    >
-                      <td style={{ fontWeight: 600, color: 'var(--accent)' }}>{infra.nama}</td>
+                    <tr key={i} {...rowLinkProps(() => onOpenInfra(infra))}>
+                      <td style={{ fontWeight: 600, color: 'var(--accent-strong)' }}>{infra.nama}</td>
                       <td className="td-num">{infra.kapasitas ?? '—'}</td>
                       <td className="td-num">{util != null ? fmtPct(util, 1) : '—'}</td>
                       <td>{infra.tahunBangun || '—'}</td>
                       <td>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: infra.isFunctioning ? 'var(--ok)' : 'var(--bad)' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', fontWeight: 600, color: infra.isFunctioning ? 'var(--ok)' : 'var(--bad)' }}>
                           <span className="dot" style={{ background: infra.isFunctioning ? 'var(--ok)' : 'var(--bad)' }} />
                           {infra.isFunctioning ? 'Beroperasi' : 'Tidak berfungsi'}
                         </span>
@@ -137,14 +133,28 @@ function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
   );
 }
 
+// Tinted badge: cluster color as text on a soft wash of itself — legible in
+// both themes (white-on-color failed contrast in dark mode).
+function ClusterBadge({ letter, size }) {
+  const c = CLUSTER_COLORS[letter];
+  return (
+    <span className="num" aria-hidden="true" style={{
+      width: size, height: size, borderRadius: 6, flexShrink: 0,
+      background: `color-mix(in oklch, ${c} 16%, var(--paper))`, color: c,
+      fontWeight: 700, fontSize: '0.75rem',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    }}>{letter}</span>
+  );
+}
+
 // ── Kelembagaan card ───────────────────────────────────────────
 function KelembagaanCard({ kel, kab }) {
   const letter = kel ? clusterLetter(kel.clusterTataKelola) : null;
   const rawLetter = kel ? rawClusterLetter(kel.clusterTataKelola) : null;
 
   const regBadge = (v) => (hasVal(v)
-    ? <span className="chip chip-ok" style={{ fontSize: 10.5 }}>Ada</span>
-    : <span className="chip chip-warn" style={{ fontSize: 10.5 }}>Belum</span>);
+    ? <span className="chip chip-ok">Ada</span>
+    : <span className="chip chip-warn">Belum</span>);
 
   return (
     <SectionCard title="Kelembagaan & Regulasi" subtitle='Sumber: sheet "Kelembagaan Regulasi"'>
@@ -163,9 +173,9 @@ function KelembagaanCard({ kel, kab }) {
               <div className="section-label" style={{ marginBottom: 8 }}>Operator</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
                 {[['Status Operator', kel.statusOperator], ['Nama Operator', kel.namaOperator]].map(([l, v]) => (
-                  <div key={l} style={{ padding: 11, background: 'var(--paper-2)', borderRadius: 7, border: '1px solid var(--line-2)' }}>
-                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', fontWeight: 500, marginBottom: 3 }}>{l}</div>
-                    <div style={{ fontWeight: 600, fontSize: 12.5 }}>{v || '—'}</div>
+                  <div key={l} className="inset inset-sm">
+                    <div className="kpi-label">{l}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{v || '—'}</div>
                   </div>
                 ))}
               </div>
@@ -178,12 +188,12 @@ function KelembagaanCard({ kel, kab }) {
                   ['Regulasi Pengelolaan ALD', kel.regulasiPengelolaan, kel.perdaPengelolaan],
                   ['Regulasi Retribusi / Tarif', kel.regulasiRetribusi, kel.perdaRetribusi],
                 ].map(([l, flag, nama]) => (
-                  <div key={l} style={{ padding: 11, background: 'var(--paper-2)', borderRadius: 7, border: '1px solid var(--line-2)' }}>
+                  <div key={l} className="inset inset-sm">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{l}</span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{l}</span>
                       {regBadge(flag)}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                    <div className="text-caption" style={{ color: 'var(--ink-2)' }}>
                       {nama || (hasVal(flag) ? 'Ada, nama perda belum dicatat' : 'Belum tersedia')}
                     </div>
                   </div>
@@ -194,36 +204,32 @@ function KelembagaanCard({ kel, kab }) {
 
           {/* Cluster side panel */}
           <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
-            <div style={{ padding: 14, borderRadius: 7, border: '1px solid var(--line-2)', background: letter ? 'var(--paper-2)' : 'var(--paper)' }}>
+            <div className="inset">
               <div className="section-label">Cluster Tata Kelola</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 6 }}>
-                <div className="num" style={{ fontSize: 38, fontWeight: 700, lineHeight: 1, color: letter ? (CLUSTER_COLORS[letter] ?? 'var(--accent)') : 'var(--ink-3)' }}>
+                <div className="num" style={{ fontSize: '2.375rem', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', color: letter ? (CLUSTER_COLORS[letter] ?? 'var(--accent)') : 'var(--ink-3)' }}>
                   {letter ?? '—'}
                 </div>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
                   {letter ? CLUSTER_LABELS[letter] : 'Tidak teridentifikasi'}
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8, lineHeight: 1.5 }}>
+              <div className="text-caption" style={{ marginTop: 8 }}>
                 Pengelompokan kesiapan tata kelola sanitasi daerah, dari A (tata kelola lengkap) hingga F (perlu intervensi menyeluruh).
               </div>
               {kel.clusterTataKelola && rawLetter && kel.clusterTataKelola.trim().toUpperCase() !== rawLetter && (
-                <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 6 }}>
+                <div className="text-caption2" style={{ marginTop: 6 }}>
                   Nilai pada sheet: “{kel.clusterTataKelola}”
                 </div>
               )}
             </div>
 
-            <div style={{ padding: 12, borderRadius: 7, border: '1px solid var(--line-2)' }}>
+            <div style={{ padding: '4px 2px' }}>
               <div className="section-label" style={{ marginBottom: 8 }}>Keterangan Cluster</div>
-              <div style={{ display: 'grid', gap: 5 }}>
+              <div style={{ display: 'grid', gap: 6 }}>
                 {Object.entries(CLUSTER_LABELS).map(([L, txt]) => (
-                  <div key={L} style={{ display: 'flex', gap: 8, fontSize: 11.5, alignItems: 'flex-start', opacity: letter && letter !== L ? 0.55 : 1 }}>
-                    <span className="num" style={{
-                      width: 18, height: 18, borderRadius: 4, background: CLUSTER_COLORS[L],
-                      color: 'white', fontWeight: 700, fontSize: 11,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>{L}</span>
+                  <div key={L} style={{ display: 'flex', gap: 8, fontSize: '0.78125rem', alignItems: 'flex-start', color: letter && letter !== L ? 'var(--ink-3)' : 'var(--ink)' }}>
+                    <ClusterBadge letter={L} size={20} />
                     <span style={{ fontWeight: letter === L ? 600 : 400, lineHeight: 1.45 }}>{txt}</span>
                   </div>
                 ))}
@@ -245,19 +251,24 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const { data: logs, reload: reloadLogs } = useLog();
   const { data: ladderKab } = useLadderKabkot();
   const { data: nasional } = useNasional();
+  const { data: bumdRows, loading: bumdLoading } = useBumd();
   const { theme } = useTheme();
   // Priority: URL deep-link (map click) -> persisted -> none.
   const [filterProv, setFilterProv] = useState(initialProvinsi || loadPref(KAB_PROV_KEY) || '');
   const [selected, setSelected] = useState(null);
+  // A new deep-link (?kode=, incl. browser back/forward) overrides an earlier
+  // in-page pick, otherwise the stale pick would win.
+  const [linkedKode, setLinkedKode] = useState(initialKode);
+  if (initialKode !== linkedKode) { setLinkedKode(initialKode); setSelected(null); }
   const [infraDetail, setInfraDetail] = useState(null);
   const [benchMetric, setBenchMetric] = useState('aman2025');
 
-  useEffect(() => {
-    if (!infraDetail) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setInfraDetail(null); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [infraDetail]);
+  // Infra detail dialog: keep the last unit rendered while it animates out.
+  const [shownDetail, setShownDetail] = useState(null);
+  if (infraDetail && infraDetail !== shownDetail) setShownDetail(infraDetail);
+  const detailPresence = usePresence(!!infraDetail);
+  const dialogRef = useRef(null);
+  useFocusTrap(dialogRef, !!infraDetail, () => setInfraDetail(null));
 
 
   const provinsiList = useMemo(() => {
@@ -308,6 +319,11 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       .filter((l) => (l.kabkot || '').toLowerCase() === (selectedKab.kabkot || '').toLowerCase())
       .sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)));
   }, [logs, selectedKab]);
+
+  const bumd = useMemo(
+    () => (selectedKab ? findBumd(bumdRows, selectedKab.kode) : null),
+    [bumdRows, selectedKab],
+  );
 
   const kabLadder = useMemo(
     () => (selectedKab ? (ladderKab.find((r) => String(r.kode) === String(selectedKab.kode))?.rungs ?? null) : null),
@@ -367,6 +383,27 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
           tahun: u.tahunBangun || '', status: u.statusText || (u.isFunctioning ? 'Berfungsi' : 'Tidak berfungsi'),
         })),
       },
+      bumd && {
+        title: `BUMD Air Minum · Tahun Buku ${bumd.tahunBuku || ''}`.trim(),
+        columns: [{ key: 'aspek', label: 'Aspek' }, { key: 'nilai', label: 'Nilai' }],
+        rows: [
+          { aspek: 'Nama BUMD', nilai: bumd.nama },
+          { aspek: 'Lingkup', nilai: bumd.lingkup },
+          { aspek: 'Status Kinerja', nilai: bumd.status || '' },
+          { aspek: 'Nilai Kinerja (0-5)', nilai: csvNum(bumd.nilai, 3) },
+          { aspek: 'FCR/Non FCR', nilai: bumd.fcr == null ? '' : bumd.fcr ? 'FCR' : 'Non FCR' },
+          { aspek: 'Tarif Rata-rata (Rp/m3)', nilai: csvNum(bumd.tarif, 0) },
+          { aspek: 'HPP (Rp/m3)', nilai: csvNum(bumd.hpp, 0) },
+          { aspek: 'Pelanggan Aktif (SR)', nilai: csvNum(bumd.pelangganAktif, 0) },
+          { aspek: 'Pelanggan Total (SR)', nilai: csvNum(bumd.pelangganTotal, 0) },
+          { aspek: 'Cakupan Pelayanan Teknis (%)', nilai: csvNum(bumd.cakupan) },
+          { aspek: 'Pendapatan Operasi (Rp)', nilai: csvNum(bumd.pendapatan, 0) },
+          { aspek: 'Biaya Operasi (Rp)', nilai: csvNum(bumd.biaya, 0) },
+          { aspek: 'Laba Bersih Setelah Pajak (Rp)', nilai: csvNum(bumd.laba, 0) },
+          { aspek: 'Tagihan Rekening Air (Rp)', nilai: csvNum(bumd.tagihan, 0) },
+          { aspek: 'Penerimaan Rekening Air (Rp)', nilai: csvNum(bumd.penerimaan, 0) },
+        ],
+      },
       kel && {
         title: 'Kelembagaan & Regulasi',
         columns: [{ key: 'aspek', label: 'Aspek' }, { key: 'nilai', label: 'Status' }],
@@ -395,7 +432,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
     ].filter(Boolean));
   };
 
-  const handlePptx = () => exportKabkotaPptx(selectedKab, kel, clusterInfo, infraHere, kabLogs);
+  const handlePptx = () => exportKabkotaPptx(selectedKab, kel, clusterInfo, infraHere, kabLogs, bumd);
 
   if (loading) return <LoadingSpinner text="Memuat data kab/kota…" />;
   if (error) return <ErrorCard message={error} onRetry={reload} />;
@@ -414,10 +451,10 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
 
       <PageHeader
         island={island}
-        kicker={`Profil Kabupaten/Kota · ${selectedKab?.provinsi ?? 'Nasional'}`}
+        context={selectedKab ? selectedKab.provinsi : 'Profil kabupaten/kota'}
         title={selectedKab?.kabkot ?? 'Pilih Kab/Kota'}
         titleExtra={letter && (
-          <span className="chip" style={{ background: CLUSTER_COLORS[letter], borderColor: 'transparent', color: 'white', fontWeight: 600 }}>
+          <span className="chip" style={{ background: `color-mix(in oklch, ${CLUSTER_COLORS[letter]} 16%, var(--paper))`, color: CLUSTER_COLORS[letter], fontWeight: 600 }}>
             Cluster {letter} — {CLUSTER_LABELS[letter]}
           </span>
         )}
@@ -425,18 +462,20 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
         controls={(
           <>
             <SearchableSelect
-              style={{ width: 190, maxWidth: '100%' }}
+              style={{ width: 200, maxWidth: '100%' }}
               value={filterProv}
               onChange={(v) => { setFilterProv(v); setSelected(null); }}
               options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiList.map((p) => ({ value: p, label: p }))]}
               placeholder="Semua Provinsi"
+              ariaLabel="Provinsi"
             />
             <SearchableSelect
-              style={{ width: 210, maxWidth: '100%' }}
+              style={{ width: 220, maxWidth: '100%' }}
               value={selectedKab?.kode ?? ''}
               onChange={(v) => setSelected(filtered.find((k) => k.kode === v) ?? null)}
               options={filtered.map((k) => ({ value: k.kode, label: k.kabkot }))}
               placeholder="Pilih Kab/Kota"
+              ariaLabel="Kabupaten/kota"
             />
             {selectedKab && <ExportButtons onCsv={handleCsv} onPptx={handlePptx} />}
           </>
@@ -446,7 +485,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
       </PageHeader>
 
       {selectedKab ? (
-        <div className="page-wrap page-pad" style={{ paddingTop: 16, paddingBottom: 40, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
+        <div className="page-wrap page-pad stack" style={{ paddingTop: 8, paddingBottom: 48 }}>
           <SectionCard
             title="Posisi di Provinsi"
             subtitle={`Perbandingan ${peers.length} kab/kota di ${selectedKab.provinsi} · garis putus-putus: rata-rata provinsi & nasional`}
@@ -478,6 +517,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
           </SectionCard>
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={setInfraDetail} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
+          <BumdCard kab={selectedKab} bumd={bumd} loading={bumdLoading} rowCount={bumdRows.length} />
         </div>
       ) : (
         <EmptyState
@@ -487,29 +527,26 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
         />
       )}
 
-      {infraDetail && (
-        <div
-          role="dialog" aria-modal="true" aria-label={`Detail ${infraDetail.nama}`}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 60,
-            background: 'oklch(15% 0.02 240 / 0.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-          }}
-          onClick={() => setInfraDetail(null)}
-        >
-          <div
-            className="card fade-in"
-            style={{ padding: 0, width: 'min(430px, 100%)', maxHeight: '86vh', overflowY: 'auto' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <InfraDetailPanel
-              infra={infraDetail}
-              logs={logs}
-              onClose={() => setInfraDetail(null)}
-              reloadLogs={reloadLogs}
-            />
+      {detailPresence.mounted && shownDetail && (
+        <>
+          <div className="scrim" data-state={detailPresence.state} onClick={() => setInfraDetail(null)} aria-hidden="true" />
+          <div className="dialog-wrap">
+            <div
+              ref={dialogRef}
+              role="dialog" aria-modal="true" aria-label={`Detail ${shownDetail.nama}`}
+              className="dialog"
+              data-state={detailPresence.state}
+              style={{ width: 'min(440px, 100%)', maxHeight: '86vh', overflowY: 'auto' }}
+            >
+              <InfraDetailPanel
+                infra={shownDetail}
+                logs={logs}
+                onClose={() => setInfraDetail(null)}
+                reloadLogs={reloadLogs}
+              />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

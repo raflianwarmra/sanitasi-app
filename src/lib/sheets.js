@@ -15,6 +15,7 @@ export const SHEET_GIDS = {
   LADDER_NAS:  'Ladder Nasional',
   LADDER_PROV: 'Ladder Provinsi',
   LADDER_KAB:  'Ladder Kabupaten/Kota',
+  BUMD:        'BUMD Air Minum',
 };
 
 // Tab name -> gid. The `/gviz/tq?tqx=out:csv` endpoint (used previously) serves
@@ -34,6 +35,7 @@ const TAB_GIDS = {
   'Ladder Nasional':        1586846199,
   'Ladder Provinsi':        620466446,
   'Ladder Kabupaten/Kota':  635331547,
+  'BUMD Air Minum':         547087676,
 };
 
 function csvUrl(sheet) {
@@ -96,11 +98,38 @@ async function fetchSheet(sheetName) {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function toNum(v) {
+// Locale-tolerant number parse. Sheets export *displayed* values, so a cell
+// may arrive as "27,01" (id-ID), "27.01" (en-US), "1.470.818.051" (id-ID
+// grouping) or "1,470,818,051" (en-US grouping). Rule: a separator that
+// repeats is a thousands separator; when both appear, the last one is the
+// decimal mark; a single "," or "." is a decimal mark.
+export function toNum(v) {
   if (v === null || v === undefined || v === '') return null;
-  const s = String(v).replace(/%/g, '').replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '');
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  let s = String(v).replace(/[^0-9.,-]/g, '');
+  const dots = (s.match(/\./g) || []).length;
+  const commas = (s.match(/,/g) || []).length;
+  if (dots && commas) {
+    const decimal = s.lastIndexOf(',') > s.lastIndexOf('.') ? ',' : '.';
+    s = s.split(decimal === ',' ? '.' : ',').join('').replace(',', '.');
+  } else if (dots > 1) {
+    s = s.replace(/\./g, '');
+  } else if (commas > 1) {
+    s = s.replace(/,/g, '');
+  } else {
+    s = s.replace(',', '.');
+  }
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
+}
+
+// Coordinates in the IPAL/IPLT tabs are often stored as comma-grouped digits
+// with the decimal point lost: "4,308,356" = 4.308356, "544,789" = 0.544789,
+// "98,078,881" = 98.078881 (6 decimals). Anything else parses normally.
+export function toCoord(v) {
+  const s = String(v ?? '').trim();
+  if (/^-?\d{1,3}(,\d{3})+$/.test(s)) return Number(s.replace(/,/g, '')) / 1e6;
+  return toNum(s);
 }
 
 // Fuzzy pick — returns the first non-empty value where the key *contains* any of the substrings.
@@ -199,8 +228,8 @@ export function normalizeInfra(raw, type) {
     const statusText = pick(r, 'status keberfungsian', 'keberfungsian', 'status');
     const status = String(statusText).toLowerCase();
     const isFunctioning = !!status && !status.includes('tidak') && !status.includes('non');
-    const lat = toNum(pick(r, 'latitude', 'lat'));
-    const lng = toNum(pick(r, 'longitude', 'lng', 'long'));
+    const lat = toCoord(pick(r, 'latitude', 'lat'));
+    const lng = toCoord(pick(r, 'longitude', 'lng', 'long'));
     const nama = pick(r, 'infrastruktur', 'nama');
     return {
       id: `${type}-${idx}`,
@@ -316,6 +345,43 @@ export function normalizeLadderKabkot(raw) {
     kabkot: pick(r, 'kabupaten kota', 'kabupaten/kota', 'kabkot'),
     rungs: extractLadderRungs(r),
   })).filter((x) => x.kode);
+}
+
+// BUMD Air Minum sheet (built by scripts/build_bumd_sheet.py): one row per
+// BUMD; "Kode BPS" may list several kab/kota ("3101;3171;…") for a BUMD that
+// serves a whole province (PAM Jaya). Rp values are raw rupiah; % are 0–100.
+const BUMD_STATUS = { sehat: 'Sehat', 'kurang sehat': 'Kurang Sehat', sakit: 'Sakit' };
+
+export function normalizeBumd(raw) {
+  return raw.map((r) => {
+    const statusRaw = String(pick(r, 'status kinerja')).trim().toLowerCase();
+    const fcrRaw = String(pick(r, 'fcr/non fcr', 'fcr')).trim().toLowerCase().replace(/\s+/g, '');
+    return {
+      kodes: String(pick(r, 'kode bps', 'kode')).split(/[;,\s]+/).map((k) => k.trim()).filter(Boolean),
+      provinsi: pick(r, 'provinsi'),
+      kabkot: pick(r, 'kabupaten/kota', 'kabupaten'),
+      nama: pick(r, 'nama bumd'),
+      lingkup: pick(r, 'lingkup') || 'Kabupaten/Kota',
+      tahunBuku: pick(r, 'tahun buku'),
+      nilai: pickNum(r, 'nilai kinerja'),
+      status: BUMD_STATUS[statusRaw] ?? null,
+      fcr: fcrRaw === 'fcr' ? true : fcrRaw === 'nonfcr' ? false : null,
+      tarif: pickNum(r, 'tarif rata'),
+      hpp: pickNum(r, 'hpp'),
+      pelangganAktif: pickNum(r, 'pelanggan aktif'),
+      pelangganTotal: pickNum(r, 'pelanggan total'),
+      pendudukTerlayani: pickNum(r, 'penduduk terlayani'),
+      pendudukWilayah: pickNum(r, 'penduduk wilayah'),
+      cakupan: pickNum(r, 'cakupan pelayanan'),
+      pendapatan: pickNum(r, 'pendapatan operasi'),
+      biaya: pickNum(r, 'biaya operasi'),
+      laba: pickNum(r, 'laba bersih'),
+      tagihan: pickNum(r, 'tagihan rekening'),
+      penerimaan: pickNum(r, 'penerimaan rekening'),
+      efektivitasTagih: pickNum(r, 'efektivitas penagihan'),
+      nrw: pickNum(r, 'kehilangan air'),
+    };
+  }).filter((b) => b.kodes.length && b.nama);
 }
 
 // ── Main fetcher ─────────────────────────────────────────────

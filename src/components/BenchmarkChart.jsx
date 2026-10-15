@@ -45,7 +45,7 @@ export default function BenchmarkChart({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
         <span className="section-label">{title}</span>
         {rank > 0 && (
-          <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>
             Peringkat <strong className="num" style={{ color: 'var(--ink)' }}>{rank}</strong> dari {sorted.length}
           </span>
         )}
@@ -59,7 +59,7 @@ export default function BenchmarkChart({
           { color: 'var(--accent)', label: 'Rata-rata nasional', value: fmtPct(natValue, 1) },
         ]}
       />
-      <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+      <div style={{ maxHeight: 340, overflowY: 'auto' }} tabIndex={0} role="region" aria-label={`${title}: daftar ${sorted.length} kab/kota (gulir)`}>
         <ChartContainer
           height={Math.max(140, sorted.length * 18)}
           ariaLabel={`${title}: posisi kab/kota dibanding rata-rata provinsi dan nasional`}
@@ -77,11 +77,11 @@ export default function BenchmarkChart({
             options: {
               indexAxis: 'y', responsive: true, maintainAspectRatio: false,
               scales: {
-                x: { grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 9 }, color: cssVar('--ink-3') } },
+                x: { grid: { color: cssVar('--viz-grid') }, ticks: { font: { size: 11 }, color: cssVar('--ink-3') } },
                 y: {
                   grid: { display: false },
                   ticks: {
-                    font: { size: 9 },
+                    font: { size: 11 },
                     color: (c) => (sorted[c.index] && String(sorted[c.index].kode) === String(selectedKode) ? cssVar('--ink') : cssVar('--ink-3')),
                   },
                 },

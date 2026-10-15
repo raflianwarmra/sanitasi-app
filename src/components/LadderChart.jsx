@@ -81,7 +81,7 @@ export default function LadderChart({ rungs, idKey, theme, height = 64 }) {
         items={valid.map((r) => ({ color: ladderColor(r.label), label: r.label, value: fmtPct(r.value, 1) }))}
       />
       {missing.length > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
+        <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', marginTop: 8 }}>
           Belum tersedia pada sumber data: {missing.join(', ')}.
         </div>
       )}

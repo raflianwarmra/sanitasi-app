@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../lib/theme';
+import { usePresence, useFocusTrap } from '../hooks/useOverlay';
 import Icon from './Icon';
 
 const NAV_ITEMS = [
@@ -9,156 +10,135 @@ const NAV_ITEMS = [
   { label: 'Infrastruktur', path: '/infrastruktur' },
 ];
 
+// Translucent chrome: content scrolls underneath; the hairline + soft edge
+// shadow appear only once content actually sits under the bar.
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  return scrolled;
+}
+
 export default function TopNav({ active, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, toggle } = useTheme();
+  const scrolled = useScrolled();
+  const sheet = usePresence(menuOpen);
+  const sheetRef = useRef(null);
+  useFocusTrap(sheetRef, menuOpen, () => setMenuOpen(false));
 
   return (
     <>
-      <nav aria-label="Navigasi utama" style={{
-        borderBottom: '1px solid var(--line)',
-        background: 'var(--paper)',
-        position: 'sticky', top: 0, zIndex: 40,
-      }}>
+      <nav aria-label="Navigasi utama" className="topnav" data-scrolled={scrolled}>
         <div className="page-wrap page-pad" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          paddingTop: 12, paddingBottom: 12, gap: 12,
+          paddingTop: 10, paddingBottom: 10, gap: 12,
         }}>
-          {/* Logo */}
           <button
+            type="button"
+            className="press"
             onClick={() => onNavigate('/')}
-            aria-label="Dashboard Data Sanitasi — Beranda"
+            aria-label="Dashboard Data Sanitasi, ke Beranda"
             style={{
-              background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 9,
-              fontWeight: 700, fontSize: 15, color: 'var(--ink)', fontFamily: 'inherit',
+              background: 'transparent', border: 'none', padding: '4px 6px 4px 0', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 10, borderRadius: 10,
+              font: 'inherit', fontWeight: 650, fontSize: '0.9375rem', letterSpacing: '-0.012em', color: 'var(--ink)',
+              transition: 'transform var(--dur-press) var(--ease-out)',
             }}
           >
-            <span style={{
-              width: 28, height: 28, borderRadius: 7,
-              background: 'var(--accent)', color: 'var(--accent-contrast)',
-              display: 'grid', placeItems: 'center',
-            }}>
-              <Icon name="droplet" size={15} strokeWidth={2} />
-            </span>
-            <span>Dashboard <span style={{ color: 'var(--accent)' }}>Data Sanitasi</span></span>
+            <span className="app-mark" aria-hidden="true"><Icon name="droplet" size={15} strokeWidth={2} /></span>
+            <span>Data Sanitasi</span>
           </button>
 
-          {/* Desktop nav */}
-          <div className="nav-links" style={{ display: 'flex', gap: 2 }}>
-            {NAV_ITEMS.map((item) => {
-              const isActive = active === item.path;
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => onNavigate(item.path)}
-                  aria-current={isActive ? 'page' : undefined}
-                  style={{
-                    padding: '7px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                    fontSize: 13, fontWeight: isActive ? 600 : 500, fontFamily: 'inherit',
-                    background: isActive ? 'var(--accent-soft)' : 'transparent',
-                    color: isActive ? 'var(--accent)' : 'var(--ink-2)',
-                    transition: 'background 0.15s ease-out, color 0.15s ease-out',
-                  }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--paper-2)'; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+          <div className="nav-links" style={{ display: 'flex', gap: 4 }}>
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                className="nav-item"
+                onClick={() => onNavigate(item.path)}
+                aria-current={active === item.path ? 'page' : undefined}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
 
-          {/* Right side */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span className="chip hide-mobile">Data 2025</span>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <button
+              type="button"
+              className="icon-btn"
               onClick={toggle}
               aria-label={theme === 'dark' ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
               title={theme === 'dark' ? 'Mode terang' : 'Mode gelap'}
-              style={{
-                width: 36, height: 36, border: '1px solid var(--line)', borderRadius: 7,
-                background: 'var(--paper)', color: 'var(--ink-2)', cursor: 'pointer',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-              }}
             >
-              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
             </button>
-
-            {/* Hamburger (mobile) */}
             <button
-              className="mobile-menu-btn"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
+              type="button"
+              className="icon-btn mobile-menu-btn"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Buka menu"
               aria-expanded={menuOpen}
-              style={{
-                display: 'none',
-                width: 36, height: 36, border: '1px solid var(--line)', borderRadius: 7,
-                background: 'var(--paper)', color: 'var(--ink)', cursor: 'pointer',
-                alignItems: 'center', justifyContent: 'center', padding: 0,
-              }}
+              aria-haspopup="dialog"
+              style={{ display: 'none', color: 'var(--ink)' }}
             >
-              <Icon name={menuOpen ? 'x' : 'menu'} size={17} />
+              <Icon name="menu" size={19} />
             </button>
           </div>
         </div>
-        <div aria-hidden="true" style={{ height: 4, background: 'var(--island-accent, transparent)', transition: 'background 0.25s ease-out' }} />
+        <div aria-hidden="true" style={{ height: 3, background: 'var(--island-accent, transparent)', transition: 'background-color var(--dur-2) var(--ease-out)' }} />
       </nav>
 
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'oklch(15% 0.02 240 / 0.45)' }}
-          onClick={() => setMenuOpen(false)}
-        >
+      {sheet.mounted && (
+        <>
+          <div className="scrim" data-state={sheet.state} onClick={() => setMenuOpen(false)} aria-hidden="true" />
           <div
-            role="menu"
-            style={{
-              position: 'absolute', top: 0, right: 0, bottom: 0, width: 280, maxWidth: '85vw',
-              background: 'var(--paper)', padding: '20px 0',
-              borderLeft: '1px solid var(--line)', boxShadow: 'var(--shadow-pop)',
-            }}
-            onClick={(e) => e.stopPropagation()}
+            ref={sheetRef}
+            className="sheet-right"
+            data-state={sheet.state}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu navigasi"
           >
             <div style={{
-              padding: '0 20px 16px', borderBottom: '1px solid var(--line-2)', marginBottom: 6,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '14px 12px 12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              <span style={{ fontWeight: 700, fontSize: 15 }}>
-                Dashboard <span style={{ color: 'var(--accent)' }}>Data Sanitasi</span>
-              </span>
-              <button
-                onClick={() => setMenuOpen(false)}
-                aria-label="Tutup menu"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 6 }}
-              >
-                <Icon name="x" size={18} />
+              <span className="text-headline">Menu</span>
+              <button type="button" className="icon-btn" onClick={() => setMenuOpen(false)} aria-label="Tutup menu">
+                <Icon name="x" size={19} />
               </button>
             </div>
-            {NAV_ITEMS.map((item) => {
-              const isActive = active === item.path;
-              return (
-                <button
-                  key={item.path}
-                  role="menuitem"
-                  onClick={() => { onNavigate(item.path); setMenuOpen(false); }}
-                  aria-current={isActive ? 'page' : undefined}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    width: '100%', textAlign: 'left',
-                    padding: '14px 20px', minHeight: 48, border: 'none', cursor: 'pointer',
-                    background: isActive ? 'var(--accent-soft)' : 'transparent',
-                    color: isActive ? 'var(--accent)' : 'var(--ink-2)',
-                    fontSize: 14, fontWeight: isActive ? 600 : 500, fontFamily: 'inherit',
-                  }}
-                >
-                  {item.label}
-                  <Icon name="chevronRight" size={15} />
-                </button>
-              );
-            })}
+            <ul style={{ listStyle: 'none', margin: 0, padding: '0 12px', display: 'grid', gap: 2 }}>
+              {NAV_ITEMS.map((item) => {
+                const isActive = active === item.path;
+                return (
+                  <li key={item.path}>
+                    <button
+                      type="button"
+                      className="list-row"
+                      onClick={() => { onNavigate(item.path); setMenuOpen(false); }}
+                      aria-current={isActive ? 'page' : undefined}
+                      style={{
+                        minHeight: 48, padding: '12px 12px', fontSize: '0.9375rem',
+                        fontWeight: isActive ? 600 : 500,
+                        background: isActive ? 'var(--accent-soft)' : undefined,
+                        color: isActive ? 'var(--accent-strong)' : 'var(--ink)',
+                      }}
+                    >
+                      {item.label}
+                      <Icon name="chevronRight" size={15} style={{ color: 'var(--ink-3)' }} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-        </div>
+        </>
       )}
     </>
   );
