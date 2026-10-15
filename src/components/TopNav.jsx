@@ -91,7 +91,6 @@ export default function TopNav({ active, onNavigate }) {
             </button>
           </div>
         </div>
-        <div aria-hidden="true" style={{ height: 3, background: 'var(--island-accent, transparent)', transition: 'background-color var(--dur-2) var(--ease-out)' }} />
       </nav>
 
       {sheet.mounted && (

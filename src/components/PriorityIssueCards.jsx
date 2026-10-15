@@ -11,7 +11,7 @@ function IssueCard({ tone, count, title, threshold, items, onOpen, emptyText }) 
   const soft = tone === 'bad' ? 'var(--bad-soft)' : 'var(--warn-soft)';
   return (
     <section className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid var(--line-2)' }}>
+      <div style={{ padding: '20px 20px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span aria-hidden="true" style={{
             width: 34, height: 34, borderRadius: 8, background: soft, color,
@@ -19,9 +19,9 @@ function IssueCard({ tone, count, title, threshold, items, onOpen, emptyText }) 
           }}>
             <Icon name="alert" size={17} />
           </span>
-          <div className="num" style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1, color }}>{count}</div>
+          <div className="num-display" style={{ fontSize: '2rem', fontWeight: 600, lineHeight: 1, color }}>{count}</div>
         </div>
-        <h3 style={{ fontSize: '0.84375rem', fontWeight: 600, margin: '10px 0 2px' }}>{title}</h3>
+        <h3 className="text-headline" style={{ fontSize: '1rem', margin: '12px 0 2px' }}>{title}</h3>
         <div style={{ fontSize: '0.75rem', color: 'var(--ink-3)' }}>{threshold}</div>
       </div>
       <div style={{ padding: 8, overflowY: 'auto', maxHeight: 250, flexGrow: 1 }}>

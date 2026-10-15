@@ -12,9 +12,9 @@ export default function IndicatorCard({
 }) {
   return (
     <SectionCard title={title} pad>
-      <div style={{ paddingBottom: 10, borderBottom: '1px solid var(--line-2)', marginBottom: 12 }}>
+      <div style={{ paddingBottom: 14, marginBottom: 6 }}>
         <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', fontWeight: 500 }}>{currentLabel}</div>
-        <div className="num" style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.15, color: tone }}>
+        <div className="num-display" style={{ fontSize: '2.25rem', fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.02em', color: tone }}>
           {current != null ? fmtPct(current) : '—'}
         </div>
         {(target != null || note) && (

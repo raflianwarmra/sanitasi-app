@@ -6,9 +6,13 @@ institutional data dashboard: clarity, deference to content, depth through
 materials, immediate feedback. Light mode is primary (bright offices,
 projectors); dark mode is tuned, not inverted. Revised 2026-10.
 
-## Color (OKLCH, restrained)
+## Color (Apple HIG palette, restrained)
 
-Tokens live in `src/index.css` under `:root` and `[data-theme="dark"]`.
+Tokens live in `src/index.css` under `:root` and `[data-theme="dark"]`, as
+**hex** on purpose: the same tokens are read by Chart.js canvases and Leaflet
+SVG attributes, which must parse them in every browser (oklch() is not safe
+there). Light = Apple gray canvas `#F5F5F7`, white cards, ink `#1D1D1F`,
+system blue; dark = true black canvas, `#1C1C1E` cards.
 
 | Token | Role |
 |---|---|
@@ -18,13 +22,14 @@ Tokens live in `src/index.css` under `:root` and `[data-theme="dark"]`.
 | `--fill` / `--fill-2` | control tracks & input fields / pressed state |
 | `--ink` / `--ink-2` / `--ink-3` | text hierarchy — all ≥ 5.4:1 on every surface, both themes |
 | `--line` / `--line-2` | hairlines; never a heavy divider |
-| `--accent` (+`-strong`, `-soft`) | teal tint — primary action, selection, focus ring |
+| `--accent` (+`-strong`, `-soft`) | Apple blue for links, selection, focus ring (text-safe) |
+| `--accent-fill` | `#0071E3` — filled buttons (white text 4.7:1) |
 | `--ok` / `--warn` / `--bad` (+`-soft`) | status only; chips are tinted (color on its own soft wash) |
 | `--viz-*` | chart series; `--viz-aman-deep`, `--viz-layak-light` for ladder sub-rungs |
 | `--material` / `--scrim` | translucent chrome and modal dimming only |
 
 Rules:
-- Never pure #000/#fff; neutrals carry the navy hue.
+- Pure white cards on gray (and true black in dark mode) as Apple does.
 - Accent ≤10% of a surface. Status colors only where they mean something.
 - White text on a status color is banned (fails in dark mode) — use tinted chips.
 - Choropleth ramps (`lib/mapMetrics.js`) are the one fixed-hex exception: they are
@@ -52,17 +57,25 @@ Rules:
 
 - `.section-label` groups content *inside* a card, sentence case. No
   eyebrow/kicker above page headings: the h1 comes first, context follows.
-- Figures use `.num` (tabular numerals). Charts use the same family, 11px min.
+- Figures use `.num` (tabular numerals). Charts use 11px minimum text.
+- Titles use the display stack (SF Pro Display); page h1 2.25rem.
+- **Charts**: the sanitation ladder (`LadderChart`, Screen Time-style
+  segmented capsule) and the province benchmark (`BenchmarkChart`, bar list
+  with dashed reference lines) are plain HTML/CSS — no canvas — so they draw
+  in every browser. Trend charts use Chart.js with hex tokens, rounded bars,
+  11px ticks; defaults are adjusted in place, never replaced.
 
 ## Surfaces & components
 
-- **Card** (`.card`, `SectionCard`): radius 14, hairline border, soft offset
-  shadow. Header = headline + caption, no divider; spacing groups.
+- **Card** (`.card`, `SectionCard`): radius 20, no border, very soft shadow,
+  24px padding. Header = headline + caption, no divider; spacing groups.
 - **Inside a card, never another bordered card** — use inset tiles
   (`.kpi`, `.inset`): `--paper-2` fill, radius 12, no border.
-- `MetricCard` — label → tabular figure → context line, optional 0–100 meter.
-- Buttons (radius 10): `.btn` filled ink, `.btn-accent` filled teal,
-  `.btn-secondary` tinted, `.btn-ghost` gray fill; `.icon-btn` 38px (44 mobile).
+- `MetricCard` — Apple Health tile: colored dot + label, large **SF Pro
+  Rounded** figure (`--font-rounded`), gray context, optional meter. The
+  figure is colored only for status (ok/warn/bad).
+- Buttons are capsules: `.btn`/`.btn-accent` filled blue, `.btn-secondary`
+  tinted, `.btn-ghost` gray fill; `.icon-btn` round 38px (44 mobile).
 - **Segmented control** (`.seg`): fill track, selected thumb on `--paper` with
   a small shadow.
 - **Inputs**: filled fields; focus = accent border + 3px soft ring.

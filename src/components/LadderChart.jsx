@@ -1,13 +1,12 @@
-// Shared sanitation-ladder chart (single stacked horizontal bar + legend).
-// Used at province and kab/kota level; NationalView reuses ladderColor for
-// its year-series variant. Renders ONLY the rungs present in the source
-// sheet and flags any canonical category the sheet doesn't carry — never
-// fabricates a split.
+// Shared sanitation-ladder bar: one segmented capsule (Screen Time style),
+// rendered in plain HTML/CSS — no canvas, so it draws in every browser,
+// scales crisply and follows the theme. Renders ONLY the rungs present in
+// the source sheet and flags any canonical category the sheet doesn't
+// carry — never fabricates a split.
 
-import Chart from 'chart.js/auto';
-import { ladderColor } from '../lib/ladder';
+import { ladderColorVar } from '../lib/ladder';
 import { fmtPct } from '../lib/format';
-import ChartContainer, { ChartLegend } from './ChartContainer';
+import { ChartLegend } from './ChartContainer';
 import EmptyState from './EmptyState';
 
 const CANONICAL = [
@@ -34,9 +33,8 @@ function missingCategories(rungs) {
 
 /**
  * @param {Array<{label: string, value: number}>|null} rungs real ladder rows
- * @param {string} idKey re-render key (e.g. selected kode)
  */
-export default function LadderChart({ rungs, idKey, theme, height = 64 }) {
+export default function LadderChart({ rungs, height = 28 }) {
   const valid = (rungs ?? []).filter((r) => r.value != null);
   if (!valid.length) {
     return (
@@ -48,40 +46,26 @@ export default function LadderChart({ rungs, idKey, theme, height = 64 }) {
     );
   }
   const missing = missingCategories(valid);
+  const summary = valid.map((r) => `${r.label} ${fmtPct(r.value, 1)}`).join(', ');
 
   return (
     <div>
-      <ChartContainer
-        height={height}
-        ariaLabel="Komposisi tangga sanitasi"
-        deps={[idKey, theme]}
-        build={(canvas) => new Chart(canvas, {
-          type: 'bar',
-          data: {
-            labels: ['2025'],
-            datasets: valid.map((r) => ({
-              label: r.label,
-              data: [r.value],
-              backgroundColor: ladderColor(r.label),
-              stack: 'ladder',
-            })),
-          },
-          options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-            scales: { x: { stacked: true, display: false, max: 100 }, y: { stacked: true, display: false } },
-            plugins: {
-              legend: { display: false },
-              tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtPct(Number(ctx.raw))}` } },
-            },
-          },
-        })}
-      />
+      <div className="ladder-bar" style={{ height }} role="img" aria-label={`Komposisi tangga sanitasi: ${summary}`}>
+        {valid.filter((r) => r.value > 0).map((r) => (
+          <span
+            key={r.label}
+            className="ladder-seg"
+            title={`${r.label}: ${fmtPct(r.value, 1)}`}
+            style={{ flexGrow: r.value, background: ladderColorVar(r.label) }}
+          />
+        ))}
+      </div>
       <ChartLegend
-        style={{ marginTop: 10 }}
-        items={valid.map((r) => ({ color: ladderColor(r.label), label: r.label, value: fmtPct(r.value, 1) }))}
+        style={{ marginTop: 12 }}
+        items={valid.map((r) => ({ color: ladderColorVar(r.label), label: r.label, value: fmtPct(r.value, 1) }))}
       />
       {missing.length > 0 && (
-        <div style={{ fontSize: '0.71875rem', color: 'var(--ink-3)', marginTop: 8 }}>
+        <div className="text-caption" style={{ marginTop: 8 }}>
           Belum tersedia pada sumber data: {missing.join(', ')}.
         </div>
       )}
