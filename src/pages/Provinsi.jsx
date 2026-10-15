@@ -6,7 +6,7 @@ import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
 import { exportProvincePptx } from '../lib/exportPptx';
 import { NAT_YEARS } from '../lib/sheets';
-import { islandOf, islandPageBackground } from '../lib/islandTheme';
+import { islandOf, islandPageProps } from '../lib/islandTheme';
 import { loadPref, savePref } from '../lib/persist';
 import Breadcrumb from '../components/Breadcrumb';
 import PageHeader from '../components/PageHeader';
@@ -24,6 +24,7 @@ import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import SearchableSelect from '../components/SearchableSelect';
 import Icon from '../components/Icon';
 import { rowLinkProps } from '../hooks/useOverlay';
+import { withViewTransition } from '../lib/viewTransition';
 
 const YEARS = [2022, 2023, 2024, 2025];
 const NATIONAL_KEY = '__nasional__';
@@ -264,7 +265,7 @@ export default function Provinsi({ onNavigate }) {
   const aGood = ipalHere.filter((x) => x.isFunctioning).length;
 
   return (
-    <div style={{ minHeight: '100vh', ...(island ? islandPageBackground(island) : { background: 'var(--bg)' }) }}>
+    <div {...islandPageProps(island)}>
       <Breadcrumb
         path={[
           { label: 'Beranda', path: '/' },
@@ -286,7 +287,7 @@ export default function Provinsi({ onNavigate }) {
             <SearchableSelect
               style={{ width: 230, maxWidth: '100%' }}
               value={selectedKode}
-              onChange={setSelectedKode}
+              onChange={(v) => withViewTransition(() => setSelectedKode(v))}
               options={selectOptions}
               sortOptions={false}
               placeholder="Pilih provinsi"
@@ -378,7 +379,7 @@ export default function Provinsi({ onNavigate }) {
             ipal={ipal}
             iplt={iplt}
             theme={theme}
-            onOpenProvince={(kode) => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); }}
+            onOpenProvince={(kode) => withViewTransition(() => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); })}
           />
         ) : (
           <div className="stack">

@@ -250,7 +250,7 @@ export default function NationalView({
 
       {/* National infrastructure + priority issues */}
       <SectionCard title="Infrastruktur & Isu Prioritas Nasional" subtitle="Agregat seluruh kab/kota">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
           <MetricCard label="Unit IPAL" value={infraNat.ipal} unit="" sub={`${infraNat.ipalGood} berfungsi`} />
           <MetricCard label="Unit IPLT" value={infraNat.iplt} unit="" sub={`${infraNat.ipltGood} berfungsi`} />
           <MetricCard label="Kab/Kota tanpa IPLT" value={infraNat.noIPLT} unit="" sub={`dari ${kabkotAll.length} kab/kota`} tone={infraNat.noIPLT ? 'warn' : 'ok'} />

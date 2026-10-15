@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { usePresence, useFocusTrap, rowLinkProps } from '../hooks/useOverlay';
+import { createPortal } from 'react-dom';
+import { usePresence, useFocusTrap, useDragDismiss, useZoomFromOrigin, rowLinkProps } from '../hooks/useOverlay';
+import { withViewTransition } from '../lib/viewTransition';
 import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot, useNasional, useBumd } from '../hooks/useSheetData';
 import { useTheme } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
@@ -20,7 +22,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import BumdCard from '../components/BumdCard';
 import { findBumd } from '../lib/bumd';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter, rawClusterLetter } from '../lib/cluster';
-import { islandOf, islandPageBackground } from '../lib/islandTheme';
+import { islandOf, islandPageProps } from '../lib/islandTheme';
 import { loadPref, savePref } from '../lib/persist';
 
 const hasVal = (v) => v && String(v).trim() && !/^x$/i.test(String(v).trim());
@@ -39,7 +41,7 @@ function AksesCard({ kab, theme, ladderRungs }) {
   const babs = kab.babs2025 ?? 0;
   return (
     <SectionCard title="Akses Sanitasi · 2025" subtitle='Sumber: sheet "Akses Kabkot" & "Ladder Kabupaten/Kota" (BPS)'>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 }}>
+      <div className="metric-grid" style={{ marginBottom: 18 }}>
         <MetricCard label="Akses Layak" value={kab.layak2025 != null ? fmtPct(kab.layak2025) : null} tone="layak" />
         <MetricCard label="Akses Aman" value={kab.aman2025 != null ? fmtPct(kab.aman2025) : null} tone="aman" />
         <MetricCard label="BABS Terbuka" value={kab.babs2025 != null ? fmtPct(kab.babs2025) : null} tone={babs > 10 ? 'bad' : 'babs'} />
@@ -63,7 +65,7 @@ function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
   return (
     <SectionCard title="Infrastruktur IPAL & IPLT" subtitle={total ? `${total} unit tercatat` : undefined}>
       {total > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', marginBottom: 16 }}>
           <MetricCard label="Total Unit" value={total} unit="" />
           <MetricCard label="Beroperasi" value={functioning} unit="" tone="ok" />
           <MetricCard label="Bermasalah" value={total - functioning} unit="" tone={total - functioning > 0 ? 'bad' : 'ok'} />
@@ -93,7 +95,7 @@ function InfrastrukturCard({ kab, infraHere, logs, onOpenInfra }) {
                   const util = infra.kapasitas && infra.kapasitasTerpakai ? (infra.kapasitasTerpakai / infra.kapasitas) * 100 : null;
                   const n = logs.filter((l) => l.infrastruktur && l.infrastruktur.toLowerCase() === infra.nama.toLowerCase()).length;
                   return (
-                    <tr key={i} {...rowLinkProps(() => onOpenInfra(infra))}>
+                    <tr key={i} {...rowLinkProps((e) => onOpenInfra(infra, e))}>
                       <td style={{ fontWeight: 600, color: 'var(--accent-strong)' }}>{infra.nama}</td>
                       <td className="td-num">{infra.kapasitas ?? '—'}</td>
                       <td className="td-num">{util != null ? fmtPct(util, 1) : '—'}</td>
@@ -171,7 +173,7 @@ function KelembagaanCard({ kel, kab }) {
           <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
             <div>
               <div className="section-label" style={{ marginBottom: 8 }}>Operator</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+              <div className="metric-grid" style={{ gap: 8 }}>
                 {[['Status Operator', kel.statusOperator], ['Nama Operator', kel.namaOperator]].map(([l, v]) => (
                   <div key={l} className="inset inset-sm">
                     <div className="kpi-label">{l}</div>
@@ -266,9 +268,19 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   // Infra detail dialog: keep the last unit rendered while it animates out.
   const [shownDetail, setShownDetail] = useState(null);
   if (infraDetail && infraDetail !== shownDetail) setShownDetail(infraDetail);
-  const detailPresence = usePresence(!!infraDetail);
+  const detailPresence = usePresence(!!infraDetail, 460);
   const dialogRef = useRef(null);
+  const grabberRef = useRef(null);
+  const scrimRef = useRef(null);
+  const [origin, setOrigin] = useState(null);
+  const openInfra = (infra, e) => {
+    setOrigin(e?.currentTarget?.getBoundingClientRect?.() ?? null);
+    setInfraDetail(infra);
+  };
   useFocusTrap(dialogRef, !!infraDetail, () => setInfraDetail(null));
+  // desktop: zoom out of / back into the row; phone: drag the sheet down
+  useZoomFromOrigin(dialogRef, detailPresence.mounted ? detailPresence.state : null, origin);
+  useDragDismiss(dialogRef, { axis: 'y', enabled: detailPresence.mounted, handleRef: grabberRef, scrimRef, onDismiss: () => setInfraDetail(null) });
 
 
   const provinsiList = useMemo(() => {
@@ -438,7 +450,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   if (error) return <ErrorCard message={error} onRetry={reload} />;
 
   return (
-    <div style={{ minHeight: '100vh', ...(island ? islandPageBackground(island) : { background: 'var(--bg)' }) }}>
+    <div {...islandPageProps(island)}>
       <Breadcrumb
         path={[
           { label: 'Beranda', path: '/' },
@@ -458,13 +470,17 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
             Cluster {letter} — {CLUSTER_LABELS[letter]}
           </span>
         )}
-        meta={selectedKab ? <>Kode BPS <span className="mono">{selectedKab.kode}</span> · {infraHere.length} unit infrastruktur · {kabLogs.length} catatan</> : undefined}
+        meta={selectedKab ? [
+          <>Kode BPS <span className="mono">{selectedKab.kode}</span></>,
+          `${infraHere.length} unit infrastruktur`,
+          `${kabLogs.length} catatan`,
+        ] : undefined}
         controls={(
           <>
             <SearchableSelect
               style={{ width: 200, maxWidth: '100%' }}
               value={filterProv}
-              onChange={(v) => { setFilterProv(v); setSelected(null); }}
+              onChange={(v) => withViewTransition(() => { setFilterProv(v); setSelected(null); })}
               options={[{ value: '', label: 'Semua Provinsi' }, ...provinsiList.map((p) => ({ value: p, label: p }))]}
               placeholder="Semua Provinsi"
               ariaLabel="Provinsi"
@@ -472,7 +488,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
             <SearchableSelect
               style={{ width: 220, maxWidth: '100%' }}
               value={selectedKab?.kode ?? ''}
-              onChange={(v) => setSelected(filtered.find((k) => k.kode === v) ?? null)}
+              onChange={(v) => withViewTransition(() => setSelected(filtered.find((k) => k.kode === v) ?? null))}
               options={filtered.map((k) => ({ value: k.kode, label: k.kabkot }))}
               placeholder="Pilih Kab/Kota"
               ariaLabel="Kabupaten/kota"
@@ -515,7 +531,7 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
               );
             })()}
           </SectionCard>
-          <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={setInfraDetail} />
+          <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={openInfra} />
           <KelembagaanCard kel={kel} kab={selectedKab} />
           <BumdCard kab={selectedKab} bumd={bumd} loading={bumdLoading} rowCount={bumdRows.length} />
         </div>
@@ -527,17 +543,19 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
         />
       )}
 
-      {detailPresence.mounted && shownDetail && (
+      {detailPresence.mounted && shownDetail && createPortal(
         <>
-          <div className="scrim" data-state={detailPresence.state} onClick={() => setInfraDetail(null)} aria-hidden="true" />
+          <div ref={scrimRef} className="scrim" data-state={detailPresence.state} onClick={() => setInfraDetail(null)} aria-hidden="true" />
           <div className="dialog-wrap">
             <div
               ref={dialogRef}
               role="dialog" aria-modal="true" aria-label={`Detail ${shownDetail.nama}`}
               className="dialog"
               data-state={detailPresence.state}
-              style={{ width: 'min(440px, 100%)', maxHeight: '86vh', overflowY: 'auto' }}
+              data-zoom={origin ? 'true' : undefined}
+              data-scroll
             >
+              <div ref={grabberRef} className="sheet-grabber" aria-hidden="true"><span /></div>
               <InfraDetailPanel
                 infra={shownDetail}
                 logs={logs}
@@ -546,7 +564,8 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
               />
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );

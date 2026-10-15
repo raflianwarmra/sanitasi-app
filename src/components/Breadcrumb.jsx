@@ -14,7 +14,7 @@ export default function Breadcrumb({ path, onNavigate }) {
               {item.path && !isLast ? (
                 <button type="button" className="crumb-btn" onClick={() => onNavigate?.(item.path)}>{label}</button>
               ) : (
-                <span aria-current={isLast ? 'page' : undefined} style={{ fontWeight: isLast ? 600 : 400, color: isLast ? 'var(--island-accent, var(--ink))' : undefined }}>
+                <span aria-current={isLast ? 'page' : undefined} style={{ fontWeight: isLast ? 600 : 400, color: isLast ? 'var(--accent-strong)' : undefined }}>
                   {label}
                 </span>
               )}

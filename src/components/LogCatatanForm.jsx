@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { appendLog } from '../lib/sheets';
 import { useTeam } from '../hooks/useSheetData';
 import Icon from './Icon';
+import { toast } from '../lib/toast';
 
 export default function LogCatatanForm({ infra, onClose, onSuccess }) {
   const fid = useId();
@@ -35,6 +36,7 @@ export default function LogCatatanForm({ infra, onClose, onSuccess }) {
         catatan: catatan.trim(),
       });
       onSuccess?.();
+      toast('Catatan tersimpan', { detail: import.meta.env.VITE_SCRIPT_URL ? 'Dikirim ke Google Sheet.' : 'Hanya untuk sesi ini (VITE_SCRIPT_URL belum di-set).' });
       onClose();
     } catch (err) {
       setSaveError(err.message);

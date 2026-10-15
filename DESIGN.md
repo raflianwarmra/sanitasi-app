@@ -16,7 +16,7 @@ system blue; dark = true black canvas, `#1C1C1E` cards.
 
 | Token | Role |
 |---|---|
-| `--bg` | grouped canvas — light cool gray; island pages tint it 6% |
+| `--bg` | grouped canvas — Apple gray; each island remaps it (see Island themes) |
 | `--paper` | the one elevated surface (cards, dialogs, popovers) |
 | `--paper-2` | inset tiles inside a card (KPI, detail groups), row hover |
 | `--fill` / `--fill-2` | control tracks & input fields / pressed state |
@@ -35,6 +35,39 @@ Rules:
 - Choropleth ramps (`lib/mapMetrics.js`) are the one fixed-hex exception: they are
   shared with the PPTX rasterizer and must read the same in both themes.
 - No gradients as decoration, no glass cards, no side-stripe accents.
+
+## Island themes (nuansa per pulau)
+
+When a province or kab/kota page is open, `<html data-island="…">` switches
+the whole chrome to that island's nuansa — not just an accent. Tokens are
+generated (light + dark, WCAG-checked) by `scripts/build_island_themes.py`
+into `src/index.css`; rerun it to tune a palette.
+
+| Island | Nuansa | Motif (hero sky) |
+|---|---|---|
+| Sumatera | songket emas — warm gold | songket lattice |
+| Jawa | batik indigo | kawung circles |
+| Bali–Nusa Tenggara | tenun ikat terakota | ikat diamonds |
+| Kalimantan | hijau hutan hujan | hook spirals |
+| Sulawesi | toska pesisir | chevrons |
+| Maluku | merah rempah cengkih | clove stars |
+| Papua | cokelat ukiran | carving waves |
+
+What an island remaps: canvas (`--bg-base`), inset tiles (`--paper-2`),
+fills, hairlines, the UI accent (`--accent`, `-fill`, `-soft`, `-strong`:
+buttons, links, focus, nav pill, app mark, breadcrumb), the nav material,
+dark-mode card surfaces, and `.island-page` — a hero "sky" in
+`--island-hero` with the island motif drawn in `--island-motif` through a
+mask, densest top-right behind the controls, clear of the title. The header
+shows an island badge + its nuansa name.
+
+What it never remaps: `--viz-*`, ok/warn/bad, map ramps, chart and table
+colors — a province in Papua must read with the same color rules as one in
+Jawa. Light-mode cards stay pure white so data surfaces are identical.
+
+Switching islands cross-fades: the theme colors are registered `@property`
+`<color>` tokens transitioned on `html` (off under reduced motion; motif
+hidden under `prefers-contrast: more`; softened on phones).
 
 ## Typography
 
@@ -91,33 +124,96 @@ Rules:
 
 - Translucency is functional chrome only: the sticky `TopNav` is a material
   (`backdrop-filter: saturate(180%) blur(20px)`) with content scrolling under
-  it; its hairline + edge shadow appear only once content is under the bar.
+  it. Instead of a hairline, a soft scroll-edge fade appears once content is
+  under the bar.
 - Modals pair a dialog with a dimming, lightly blurred `.scrim`.
 - `prefers-reduced-transparency` → solid chrome; `prefers-contrast: more` →
   solid chrome, stronger hairlines, outlined tiles.
 
-## Motion
+## Motion & interaction
 
-- Feedback on **press-down**: `:active { transform: scale(0.97) }` in 60–110ms
-  on every tappable surface (buttons, rows, segmented, nav).
-- Exponential ease-out (`--ease-out`), no overshoot; 180–360ms. Charts animate
-  260ms. No page-load choreography.
-- **Spatial consistency**: the mobile menu sheet enters from the right and
-  leaves to the right on the same curve (`--ease-sheet`); dialogs materialize
-  (opacity + scale + blur) and dematerialize the same way; popovers grow from
-  their trigger. Entry via CSS `@starting-style`; overlays stay mounted through
-  exit (`usePresence`), and CSS transitions retarget from the current value if
-  reopened mid-exit.
-- `prefers-reduced-motion`: movement, scale and blur are dropped; short
-  opacity cross-fades remain (feedback is kept, vestibular motion is not).
-  Charts don't animate.
+One motion language, so every surface moves the same way. Nothing is a
+one-off timing.
+
+**Springs, not durations** (`src/lib/spring.js`). Every curve is defined as
+an Apple spring, with a damping ratio and a response time:
+
+| Token | Damping / response | Used for |
+|---|---|---|
+| `smooth` | 1 / 0.40s | repositioning, page-level moves |
+| `snappy` | 1 / 0.30s | popovers, dialogs, press release |
+| `sheet` | 1 / 0.36s | tap-opened sheets |
+| `flick` | 0.8 / 0.32s | only after a momentum gesture (the one place with bounce) |
+
+- **One source for CSS and JS.** `installSpringTokens()` samples each spring
+  into a CSS `linear()` easing plus its settle time, as `--spring-NAME` and
+  `--spring-NAME-dur`. Engines without `linear()` get a matching ease-out.
+  `animateSpring()` integrates the same spring per frame for gesture
+  releases.
+- **Interruptible.** CSS transitions retarget from the on-screen value. A
+  JS spring can be stopped mid-flight, and a new grab continues from where
+  the surface is; nothing snaps back to its start.
+- **Press feedback on touch-down:** `:active` scales to 0.97 on every
+  tappable surface.
+
+**Direct manipulation** (`useDragDismiss`):
+- The mobile menu sheet (drag right) and the infrastructure bottom sheet
+  (drag the grabber down) follow the finger 1:1 after a 10px intent
+  threshold.
+- Past the open position they resist with a rubber band.
+- On release, the flick's momentum is projected
+  (`v·d/(1−d)`, d = 0.998) to decide close vs. stay. The finger's velocity
+  is then handed to the spring, so a hard flick closes even from a short
+  drag.
+
+**Spatial consistency.** Things leave the way they came:
+- The menu sheet goes back to the right.
+- On desktop, the infrastructure dialog zooms out of the table row that
+  opened it, and back into it on close (`useZoomFromOrigin`). On phones it
+  is a bottom sheet.
+- Popovers grow from their trigger. Entry uses `@starting-style`;
+  `usePresence` keeps overlays mounted through their exit.
+
+**Depth.** While a modal is open, the page behind recedes: scale 0.985 and
+less saturation, around the viewport centre (`html[data-modal]`). It
+returns when the modal closes.
+
+**Navigation is one continuous transition.** Route changes, back/forward and
+province/kab-kota picks run inside a View Transition (`withViewTransition`):
+- The top bar stays put.
+- The page title morphs.
+- The island theme colours cross-fade through `@property`-registered
+  tokens.
+
+**Completion feedback.** Saving a note or exporting CSV/PPTX posts a toast
+(`toast()` → `Toaster`, a polite live region). It enters from below, lives
+2.8s, and leaves the same way. Failures use the `bad` tone.
+
+**Reduced motion.** Movement, scale, blur, the page recede and View
+Transitions are dropped. Short opacity fades remain (feedback is kept,
+vestibular motion is not). Gestures still work, but release without the
+bounce. Charts don't animate.
+
+## Shared vocabulary (no one-off layouts)
+
+- `PageHeader`: title, then an identity line (island badge + nuance ·
+  scope), a meta line, and right-aligned controls. On mobile the controls
+  become a full-width toolbar: pickers share a row, the export pair shares
+  the next.
+- `.inline-list`: "·"-separated lines. The separator that would lead a
+  wrapped line is clipped, so no dot ever dangles at a line edge.
+- `.metric-grid`: every row of `MetricCard`s. An odd last tile spans the row
+  on phones instead of sitting alone.
+- `.legend` / `.legend-item` / `.legend-swatch`, `.map-frame`,
+  `.map-tooltip`, `.with-panel` / `.side-panel`, and `tr[data-selected]`:
+  the same pieces on every page.
 
 ## Accessibility
 
 - Focus ring 2.5px accent, offset 2; skip link to `<main>`; dialogs and the
   menu sheet trap focus, close on Esc, restore focus to the trigger.
 - Scrollable regions are focusable and labelled.
-- Touch targets ≥ 44px on mobile (crumbs ≥ 39px, above the 24px WCAG minimum).
+- Touch targets ≥ 44px on mobile, including small buttons, segmented controls and crumbs.
 - Verified with axe-core (WCAG 2.1 A/AA): zero violations on all four pages,
   light and dark.
 
