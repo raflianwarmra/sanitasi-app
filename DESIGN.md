@@ -57,7 +57,13 @@ Rules:
 
 - `.section-label` groups content *inside* a card, sentence case. No
   eyebrow/kicker above page headings: the h1 comes first, context follows.
-- Figures use `.num` (tabular numerals). Charts use the same family, 11px min.
+- Figures use `.num` (tabular numerals). Charts use 11px minimum text.
+- Titles use the display stack (SF Pro Display); page h1 2.25rem.
+- **Charts**: the sanitation ladder (`LadderChart`, Screen Time-style
+  segmented capsule) and the province benchmark (`BenchmarkChart`, bar list
+  with dashed reference lines) are plain HTML/CSS — no canvas — so they draw
+  in every browser. Trend charts use Chart.js with hex tokens, rounded bars,
+  11px ticks; defaults are adjusted in place, never replaced.
 
 ## Surfaces & components
 
