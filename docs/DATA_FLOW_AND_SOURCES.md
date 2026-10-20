@@ -133,11 +133,13 @@ value (978 rows):
 
 **Import:** File → Import → Upload the generated .xlsx → *Insert new
 sheet(s)*. Keep the tab names exactly **`Anggaran PU`** and **`Anggaran ALD
-Rinci`**; don't apply number formats to the Rp columns. Then register each
-tab's `gid` in `TAB_GIDS` in `src/lib/sheets.js`. Until a gid is registered
-the app falls back to the gviz endpoint by tab name. That endpoint returns the
-*first* tab when a name is missing, so both normalizers drop rows that lack
-their own columns (`Nama Pemda`, `Kode Sub Kegiatan`) rather than show zeros.
+Rinci`**; don't apply number formats to the Rp columns. Their gids
+(`577924702` and `1867205373`) are registered in `TAB_GIDS` in
+`src/lib/sheets.js`; if a tab is deleted and re-imported, update the number.
+Without a gid the app falls back to the gviz endpoint by tab name, which
+returns the *first* tab when a name is missing, so both normalizers drop rows
+that lack their own columns (`Nama Pemda`, `Kode Sub Kegiatan`) rather than
+show zeros.
 
 Rp values are parsed with `toRp()`, which, unlike `toNum()`, reads a lone
 separator before exactly three digits as a thousands separator

@@ -38,6 +38,8 @@ const TAB_GIDS = {
   'Ladder Provinsi':        620466446,
   'Ladder Kabupaten/Kota':  635331547,
   'BUMD Air Minum':         547087676,
+  'Anggaran PU':            577924702,
+  'Anggaran ALD Rinci':     1867205373,
 };
 
 function csvUrl(sheet) {
