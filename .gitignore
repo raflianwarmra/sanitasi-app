@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Raw APBD/RKPD workbooks (large, not for the repo)
+docs/anggaran daerah/

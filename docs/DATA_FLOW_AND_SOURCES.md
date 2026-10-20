@@ -20,6 +20,8 @@ Explains how the app reads from and writes to the single Google Sheet that power
 | `Log Catatan Infras`     | Field notes, user-appended via the app           | `normalizeLog`            |
 | `Team Member`                   | Dropdown source for the "User" field on catatan  | `normalizeTeam`           |
 | `BUMD Air Minum`                | Kinerja BUMD Air Minum per kab/kota (Kab/Kota page) | `normalizeBumd`        |
+| `Anggaran PU`                   | APBD 2026 bidang PU per pemda, by sector (Provinsi + Kab/Kota pages, national view) | `normalizeAnggaran` |
+| `Anggaran ALD Rinci`            | APBD 2026 ALD per pemda × sub-kegiatan            | `normalizeAnggaranAld`    |
 
 Join key across the non-provinsi tabs is the BPS code in `Kode Kabupaten/Kota` (or `Kode` in the provinsi sheet; `Kode BPS` in the BUMD tab).
 
@@ -58,6 +60,90 @@ if the tab is ever deleted and re-imported, update that number.
 | Pendapatan Operasi (Rp) | accrual operating revenue (water sales + non-water operating income) |
 | Tagihan / Penerimaan Rekening Air (Rp) | water bills issued / cash actually collected in the year |
 | Laba Bersih Setelah Pajak (Rp) | net profit after tax |
+
+## Anggaran PU & Anggaran ALD Rinci tabs
+
+Source: two SIPD (Kemendagri) extracts for urusan 1.03 PU & Penataan Ruang,
+kept locally in `docs/anggaran daerah/` and **never committed** (gitignored;
+the APBD file is 134 MB):
+
+| File | Sheet | Grain | Used for |
+|---|---|---|---|
+| `apbd_2026_pu.xlsx` | `view_apbd_2026_pu` | one row per **rincian belanja** (akun level, 568.008 rows); pemda by **name only**; no tahap column | all amounts |
+| `rkpd_2026_pu.xlsx` | `view_rkpd_2026_PU` | one row per sub-kegiatan, with `kode_ddn` | only the output indicator + target per ALD sub-kegiatan |
+
+Build the import file:
+
+```
+python3 scripts/build_anggaran_sheet.py "docs/anggaran daerah" "docs/anggaran daerah/anggaran_pu_sheet.xlsx"
+```
+
+The script streams both workbooks with the standard library (reader shared
+with `scripts/aggregate_anggaran_pu.py`, ~45 s) and writes one .xlsx with both
+tabs. It refuses to write output if a pemda name doesn't resolve to a Kode
+BPS (matched by province + name + Kab/Kota type against `public/geo/`, with an
+alias list for renamed regions such as Toba Samosir → Toba, Mamuju Utara →
+Pasangkayu), a code repeats, an ALD sub-kegiatan isn't in the kelompok map,
+the sector totals don't add back to the file total, or a pemda's ALD column
+differs from the sum of its ALD Rinci rows. Reference totals (from the
+workbooks' own pivots): PU Rp103,19 T, ALD Rp1,164 T.
+
+Decisions (agreed with the planner, Oct 2026):
+
+- **Sectors by program code:** 1.03.10 Jalan · 1.03.05 ALD · 1.03.03 Air Minum ·
+  1.03.04 Persampahan · everything else Lainnya PU (SDA, drainase, permukiman,
+  bangunan, jasa konstruksi, tata ruang, keistimewaan DIY).
+- **Penunjang (1.03.01) is a separate column** and is not part of
+  `Total Sektor`; shares are over the five sectors. It is ~12% of PU and mostly
+  belanja pegawai.
+- **Stage unknown:** the extract has no murni/perubahan column, so the UI says
+  "APBD 2026 (SIPD) … tahap tidak tercantum".
+- **No RKPD fallback:** pemda without APBD rows (Pemprov DKI, Kab. Pegunungan
+  Arfak, Kab. Nduga; the DKI kota adm. have no budget of their own) show an
+  empty state.
+- **Province aggregate** = Pemprov + its kab/kota. The extract has no Belanja
+  Transfer (5.4): bantuan keuangan sits outside urusan PU, so it is *missing*,
+  not double counted; hibah between pemda is Rp22,9 M nationally. The UI
+  carries that note.
+
+**Anggaran PU** — one row per pemda (543: 37 Pemprov, 506 kab/kota):
+
+| Column | Meaning |
+|---|---|
+| Kode BPS | 2 digits = Pemprov, 4 digits = kab/kota (dashboard codes, not Kemendagri) |
+| Provinsi / Nama Pemda / Level / Tahun / Sumber | identity; Sumber = `APBD 2026 (SIPD)` |
+| Jalan / ALD / Air Minum / Persampahan / Lainnya PU (Rp) | sum of `total_harga` per sector |
+| Total Sektor (Rp) | sum of the five sectors |
+| Penunjang (Rp) | program 1.03.01, outside Total Sektor |
+| Total PU (Rp) | Total Sektor + Penunjang |
+
+**Anggaran ALD Rinci** — one row per pemda × ALD sub-kegiatan with a nonzero
+value (978 rows):
+
+| Column | Meaning |
+|---|---|
+| Kode BPS / Nama Pemda / Level | join key + identity |
+| Kelompok | SPALD Terpusat · SPALD Setempat · IPLT & Lumpur Tinja · Operasi & Pemeliharaan · Perencanaan & Pembinaan (mapped by sub-kegiatan code) |
+| Kode Sub Kegiatan / Sub Kegiatan / SKPD | from APBD; several SKPD joined with `;` |
+| Nilai (Rp) | APBD value |
+| Modal / Barang & Jasa / Hibah & Bansos / Pegawai (Rp) | split by `kode_akun` (sums to Nilai) |
+| DAK / DAU / PAD / Bagi Hasil / Lainnya (Rp) | split by `nama_dana`, which in the APBD is one source per line (sums to Nilai) |
+| Sumber Dana | the distinct source names, largest first |
+| Indikator Keluaran (RKPD) / Target (RKPD) | RKPD 2026 output for the same pemda + sub-kegiatan (planning target, not an APBD figure) |
+
+**Import:** File → Import → Upload the generated .xlsx → *Insert new
+sheet(s)*. Keep the tab names exactly **`Anggaran PU`** and **`Anggaran ALD
+Rinci`**; don't apply number formats to the Rp columns. Their gids
+(`577924702` and `1867205373`) are registered in `TAB_GIDS` in
+`src/lib/sheets.js`; if a tab is deleted and re-imported, update the number.
+Without a gid the app falls back to the gviz endpoint by tab name, which
+returns the *first* tab when a name is missing, so both normalizers drop rows
+that lack their own columns (`Nama Pemda`, `Kode Sub Kegiatan`) rather than
+show zeros.
+
+Rp values are parsed with `toRp()`, which, unlike `toNum()`, reads a lone
+separator before exactly three digits as a thousands separator
+(`500,000` = 500000), since Rupiah amounts never carry three decimals.
 
 ### Number parsing
 
@@ -238,5 +324,7 @@ For a production build: `npm run build && npm run preview`.
 
 - [src/lib/sheets.js](../src/lib/sheets.js) — all I/O, normalizers, cache, write path.
 - [src/hooks/useSheetData.js](../src/hooks/useSheetData.js) — thin React wrapper around the fetch layer.
+- [scripts/build_anggaran_sheet.py](../scripts/build_anggaran_sheet.py) — builds the two Anggaran tabs from the SIPD extracts.
+- [src/lib/anggaran.js](../src/lib/anggaran.js) — sector list, province aggregate, ALD rank and grouping helpers.
 - [src/components/LogCatatanForm.jsx](../src/components/LogCatatanForm.jsx) — the only component that writes.
 - [src/components/LogCatatanList.jsx](../src/components/LogCatatanList.jsx) — read-only timeline of catatan.

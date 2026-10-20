@@ -16,6 +16,8 @@ export const SHEET_GIDS = {
   LADDER_PROV: 'Ladder Provinsi',
   LADDER_KAB:  'Ladder Kabupaten/Kota',
   BUMD:        'BUMD Air Minum',
+  ANGGARAN:    'Anggaran PU',
+  ANGGARAN_ALD: 'Anggaran ALD Rinci',
 };
 
 // Tab name -> gid. The `/gviz/tq?tqx=out:csv` endpoint (used previously) serves
@@ -36,6 +38,8 @@ const TAB_GIDS = {
   'Ladder Provinsi':        620466446,
   'Ladder Kabupaten/Kota':  635331547,
   'BUMD Air Minum':         547087676,
+  'Anggaran PU':            577924702,
+  'Anggaran ALD Rinci':     1867205373,
 };
 
 function csvUrl(sheet) {
@@ -130,6 +134,16 @@ export function toCoord(v) {
   const s = String(v ?? '').trim();
   if (/^-?\d{1,3}(,\d{3})+$/.test(s)) return Number(s.replace(/,/g, '')) / 1e6;
   return toNum(s);
+}
+
+// Whole-rupiah parse. Unlike toNum, a lone separator before exactly three
+// digits is a thousands separator ("500,000" = 500000, not 500): Rupiah
+// amounts never carry three decimals.
+export function toRp(v) {
+  const s = String(v ?? '').trim();
+  if (/^-?\d{1,3}([.,]\d{3})+$/.test(s)) return Number(s.replace(/[.,]/g, ''));
+  const n = toNum(s);
+  return n == null ? null : Math.round(n);
 }
 
 // Fuzzy pick — returns the first non-empty value where the key *contains* any of the substrings.
@@ -382,6 +396,60 @@ export function normalizeBumd(raw) {
       nrw: pickNum(r, 'kehilangan air'),
     };
   }).filter((b) => b.kodes.length && b.nama);
+}
+
+// Anggaran PU sheet (built by scripts/build_anggaran_sheet.py): one row per
+// pemda with APBD 2026 rows. Kode BPS is 2 digits for a Pemprov, 4 for a
+// kab/kota. Penunjang (program 1.03.01) is kept out of the sector total.
+export function normalizeAnggaran(raw) {
+  return raw.map((r) => ({
+    kode: String(pick(r, 'kode bps', 'kode')).trim(),
+    provinsi: pick(r, 'provinsi'),
+    nama: pick(r, 'nama pemda'),
+    level: /prov/i.test(pick(r, 'level')) ? 'Provinsi' : 'Kab/Kota',
+    tahun: pick(r, 'tahun'),
+    sumber: pick(r, 'sumber'),
+    sektor: {
+      jalan: toRp(pick(r, 'jalan (rp)')) ?? 0,
+      ald: toRp(pick(r, 'ald (rp)')) ?? 0,
+      airMinum: toRp(pick(r, 'air minum (rp)')) ?? 0,
+      persampahan: toRp(pick(r, 'persampahan (rp)')) ?? 0,
+      lainnya: toRp(pick(r, 'lainnya pu (rp)')) ?? 0,
+    },
+    totalSektor: toRp(pick(r, 'total sektor')) ?? 0,
+    penunjang: toRp(pick(r, 'penunjang')) ?? 0,
+  })).filter((a) => a.nama && /^\d{2}(\d{2})?$/.test(a.kode));
+}
+
+// Anggaran ALD Rinci sheet: one row per pemda x ALD sub-kegiatan (program
+// 1.03.05, APBD 2026), with belanja-type and funding-source splits and the
+// RKPD output target for that sub-kegiatan.
+export function normalizeAnggaranAld(raw) {
+  return raw.map((r) => ({
+    kode: String(pick(r, 'kode bps')).trim(),
+    nama: pick(r, 'nama pemda'),
+    kelompok: pick(r, 'kelompok'),
+    kodeSub: pick(r, 'kode sub'),
+    subKegiatan: pick(r, 'sub kegiatan'),
+    skpd: pick(r, 'skpd'),
+    nilai: toRp(pick(r, 'nilai (rp)')) ?? 0,
+    belanja: {
+      modal: toRp(pick(r, 'modal (rp)')) ?? 0,
+      barangJasa: toRp(pick(r, 'barang & jasa (rp)')) ?? 0,
+      hibahBansos: toRp(pick(r, 'hibah & bansos (rp)')) ?? 0,
+      pegawai: toRp(pick(r, 'pegawai (rp)')) ?? 0,
+    },
+    dana: {
+      dak: toRp(pick(r, 'dak (rp)')) ?? 0,
+      dau: toRp(pick(r, 'dau (rp)')) ?? 0,
+      pad: toRp(pick(r, 'pad (rp)')) ?? 0,
+      bagiHasil: toRp(pick(r, 'bagi hasil (rp)')) ?? 0,
+      lainnya: toRp(pick(r, 'lainnya (rp)')) ?? 0,
+    },
+    sumberDana: pick(r, 'sumber dana'),
+    indikator: pick(r, 'indikator'),
+    target: pick(r, 'target'),
+  })).filter((x) => x.kode && x.kodeSub && x.nilai > 0);
 }
 
 // ── Main fetcher ─────────────────────────────────────────────

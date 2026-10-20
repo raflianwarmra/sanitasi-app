@@ -11,6 +11,7 @@ const TONES = {
   layak: 'var(--viz-layak)',
   aman: 'var(--viz-aman)',
   babs: 'var(--viz-babs)',
+  ald: 'var(--viz-ald)',
 };
 const STATUS = new Set(['ok', 'warn', 'bad']);
 

@@ -26,6 +26,8 @@ system blue; dark = true black canvas, `#1C1C1E` cards.
 | `--accent-fill` | `#0071E3` — filled buttons (white text 4.7:1) |
 | `--ok` / `--warn` / `--bad` (+`-soft`) | status only; chips are tinted (color on its own soft wash) |
 | `--viz-*` | chart series; `--viz-aman-deep`, `--viz-layak-light` for ladder sub-rungs |
+| `--viz-ald` (+`-light`) | Air Limbah Domestik in budget charts — purple, the one hue no island accent or status color uses. Light `#9A3FC9` (5.3:1 on paper, 4.4:1 on fill), dark `#C77DFF` (6.3:1 / 5.2:1); ≥3.4:1 against the neutral bars beside it |
+| `--viz-neutral` / `--viz-muted` | non-highlighted series: strong part / light part (e.g. Pemprov / kab/kota) |
 | `--material` / `--scrim` | translucent chrome and modal dimming only |
 
 Rules:
@@ -95,7 +97,12 @@ hidden under `prefers-contrast: more`; softened on phones).
 - **Charts**: the sanitation ladder (`LadderChart`, Screen Time-style
   segmented capsule) and the province benchmark (`BenchmarkChart`, bar list
   with dashed reference lines) are plain HTML/CSS — no canvas — so they draw
-  in every browser. Trend charts use Chart.js with hex tokens, rounded bars,
+  in every browser. The budget bar list (`RpBarList`) reuses the
+  `.bench-*` pieces with a wider, no-wrap Rupiah column (`.bench-rp`). No
+  share capsule for ALD: at 1–6% of PU it would be a sliver, so the share is
+  the figure's context line instead. Only ALD carries color; every other
+  sector stays neutral. A stacked row puts parts of one whole (Pemprov +
+  kab/kota) on one bar, so both read on the same scale. Trend charts use Chart.js with hex tokens, rounded bars,
   11px ticks; defaults are adjusted in place, never replaced.
 
 ## Surfaces & components
@@ -118,6 +125,20 @@ hidden under `prefers-contrast: more`; softened on phones).
   `rowLinkProps()` (Tab + Enter/Space, visible focus ring).
 - `BumdCard` — status score scale (0–5, thresholds 2,2/2,8), FCR tariff vs HPP,
   customers, coverage meter, revenue & profit, explicit coverage caveat.
+- `AnggaranCard` — APBD 2026 bidang PU for a Pemprov or kab/kota, with a
+  segmented control for *Ringkasan* (ALD figure with its share, rank,
+  sector bar list; provinces add Pemprov vs agregat) and *Rincian ALD*
+  (sub-kegiatan grouped by kelompok; provinces list every kab/kota as
+  disclosure rows that open their detail). `AnggaranNasional` ranks the
+  provinces on the national view. Glance-first: figures and bars carry the
+  message; the stage caveat lives in the subtitle, Penunjang in a context
+  line, and a province gets one short caption on what the aggregate leaves
+  out. Long RKPD indicator text is clamped to two lines under the target,
+  and funding sources are shortened to the names planners use (PAD, DAU,
+  DAK Sanitasi-Reguler, SiLPA).
+- Detail lists (`.ald-item`) are a four-column table on desktop and stacked
+  rows on phones (amount stays top-right, the rest goes full width), using
+  grid areas rather than a scrolling table.
 - `EmptyState` teaches the next step; skeletons for panel loading.
 
 ## Materials & depth

@@ -12,6 +12,7 @@ import ChartContainer, { ChartLegend } from './ChartContainer';
 import ProvinceKabkotMap from './ProvinceKabkotMap';
 import { ladderColor } from '../lib/ladder';
 import EmptyState from './EmptyState';
+import { AnggaranNasional } from './AnggaranCard';
 import Icon from './Icon';
 import { rowLinkProps } from '../hooks/useOverlay';
 
@@ -29,6 +30,7 @@ function natChartOpts() {
 
 export default function NationalView({
   provinces, nasional, ladder, kabkotAll, ipal, iplt, theme, onOpenProvince,
+  anggaranRows = [], anggaranLoading = false,
 }) {
   const [mapMetric, setMapMetric] = useState('aman');
   const metricDef = MAP_METRICS[mapMetric];
@@ -259,6 +261,8 @@ export default function NationalView({
           <MetricCard label="Kab/Kota Aman < 5%" value={infraNat.amanLow} unit="" tone={infraNat.amanLow ? 'warn' : 'ok'} sub="akses aman rendah" />
         </div>
       </SectionCard>
+
+      <AnggaranNasional rows={anggaranRows} loading={anggaranLoading} provinces={provinces} onOpenProvince={onOpenProvince} />
 
       {/* Provinces table */}
       <SectionCard title="Data Provinsi · 2025" subtitle="Urut kode BPS · klik baris untuk membuka profil provinsi" pad={false}>
