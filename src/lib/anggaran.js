@@ -1,13 +1,12 @@
 // Anggaran PU (APBD 2026, SIPD) helpers shared by AnggaranCard and the
 // national view. Rows come from normalizeAnggaran / normalizeAnggaranAld.
 
-export const SUMBER_NOTE = 'APBD 2026 (SIPD), urusan PU & Penataan Ruang. Tahap murni/perubahan tidak tercantum pada sumber.';
-export const PENUNJANG_NOTE = 'Program Penunjang (gaji dan operasional kantor) dipisahkan dan tidak dihitung dalam total sektor.';
-export const AGREGAT_NOTE = 'Agregat = APBD Pemprov + seluruh kab/kota, bidang PU. Bantuan keuangan provinsi ke kab/kota dicatat di luar urusan PU sehingga tidak termasuk; hibah antar-pemda di data ini sangat kecil, jadi risiko hitung ganda minim.';
+// The one caveat shown on a province: what the Pemprov + kab/kota sum leaves out.
+export const AGREGAT_NOTE = 'Pemprov + kab/kota tidak mencakup bantuan keuangan provinsi (dicatat di luar urusan PU).';
 
 export const SECTORS = [
   { key: 'jalan', label: 'Jalan' },
-  { key: 'ald', label: 'Air Limbah Domestik' },
+  { key: 'ald', label: 'ALD' },
   { key: 'airMinum', label: 'Air Minum' },
   { key: 'persampahan', label: 'Persampahan' },
   { key: 'lainnya', label: 'Lainnya PU' },

@@ -1,28 +1,10 @@
-// Rupiah bars for the Anggaran views, in plain HTML/CSS (no canvas) on the
-// same pieces as LadderChart (.ladder-bar capsule) and BenchmarkChart
-// (.bench-* bar list). Only ALD carries a data color; everything else stays
-// neutral.
+// Rupiah bar list for the Anggaran views, in plain HTML/CSS (no canvas) on
+// the same pieces as BenchmarkChart (.bench-* bar list). Only ALD carries a
+// data color; everything else stays neutral.
 
-import { fmtPct, fmtRp } from '../lib/format';
+import { fmtRp } from '../lib/format';
 import { ChartLegend } from './ChartContainer';
 import Icon from './Icon';
-
-// One segmented capsule: each segment's share of the whole.
-export function ShareBar({ segments, ariaLabel, height = 20 }) {
-  const total = segments.reduce((s, x) => s + x.value, 0);
-  return (
-    <div className="ladder-bar" style={{ height }} role="img" aria-label={ariaLabel}>
-      {segments.filter((s) => s.value > 0).map((s) => (
-        <span
-          key={s.key}
-          className="ladder-seg"
-          title={`${s.label}: ${fmtRp(s.value)} (${fmtPct((s.value / total) * 100, 1)})`}
-          style={{ flexGrow: s.value, background: s.color }}
-        />
-      ))}
-    </div>
-  );
-}
 
 // Sorted bar list with Rupiah values. A row may stack several segments
 // (e.g. Pemprov + kab/kota) on one bar; all rows share one scale. Rows with

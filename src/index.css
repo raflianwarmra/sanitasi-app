@@ -898,6 +898,7 @@ body { font-size: 0.875rem; line-height: 1.5; }
 /* Rupiah bar lists (Anggaran): wider value column; rows can be disclosure
    buttons that open a detail block underneath. */
 .bench-rp { --bench-label: 170px; --bench-value: 112px; }
+.bench-rp .bench-value { white-space: nowrap; }
 .bench-rp .bench-row[data-selected] .bench-label { color: var(--ink); } /* highlight = data color, not the island accent */
 .bench-row-btn {
   all: unset; box-sizing: border-box; width: 100%; cursor: pointer;
@@ -915,8 +916,6 @@ body { font-size: 0.875rem; line-height: 1.5; }
 .bench-row-btn .disclosure { margin-right: auto; transition: transform var(--spring-snappy-dur, 400ms) var(--spring-snappy, var(--ease-out)); }
 .bench-row-btn[aria-expanded="true"] .disclosure { transform: rotate(90deg); }
 .bench-detail { padding: 8px 0 20px; }
-.share-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 48px; align-items: center; gap: 12px; }
-.share-row > :last-child { text-align: right; }
 
 /* ALD sub-kegiatan list: a table on desktop, stacked rows on phones */
 .ald-cols, .ald-item {
@@ -937,9 +936,10 @@ body { font-size: 0.875rem; line-height: 1.5; }
 .ald-out, .ald-dana { color: var(--ink-2); overflow-wrap: anywhere; }
 .ald-value { text-align: right; font-weight: 600; color: var(--ink); }
 .ald-k { display: none; color: var(--ink-3); }
+.ald-ind { margin-top: 2px; color: var(--ink-3); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 
 @media (max-width: 768px) {
-  .bench-rp { --bench-label: 104px; --bench-value: 92px; }
+  .bench-rp { --bench-label: 96px; --bench-value: 108px; }
   .bench-row-btn { min-height: 44px; }
   .ald-cols { display: none; }
   .ald-item { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main value" "out out" "dana dana" "split split"; grid-template-rows: auto; gap: 4px 12px; }

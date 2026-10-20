@@ -97,9 +97,10 @@ hidden under `prefers-contrast: more`; softened on phones).
 - **Charts**: the sanitation ladder (`LadderChart`, Screen Time-style
   segmented capsule) and the province benchmark (`BenchmarkChart`, bar list
   with dashed reference lines) are plain HTML/CSS — no canvas — so they draw
-  in every browser. Budget charts (`RpBars`: `ShareBar` capsule and
-  `RpBarList`) reuse the same `.ladder-*` / `.bench-*` pieces with a wider
-  Rupiah value column (`.bench-rp`). Only ALD carries color; every other
+  in every browser. The budget bar list (`RpBarList`) reuses the
+  `.bench-*` pieces with a wider, no-wrap Rupiah column (`.bench-rp`). No
+  share capsule for ALD: at 1–6% of PU it would be a sliver, so the share is
+  the figure's context line instead. Only ALD carries color; every other
   sector stays neutral. A stacked row puts parts of one whole (Pemprov +
   kab/kota) on one bar, so both read on the same scale. Trend charts use Chart.js with hex tokens, rounded bars,
   11px ticks; defaults are adjusted in place, never replaced.
@@ -125,12 +126,16 @@ hidden under `prefers-contrast: more`; softened on phones).
 - `BumdCard` — status score scale (0–5, thresholds 2,2/2,8), FCR tariff vs HPP,
   customers, coverage meter, revenue & profit, explicit coverage caveat.
 - `AnggaranCard` — APBD 2026 bidang PU for a Pemprov or kab/kota, with a
-  segmented control for *Ringkasan* (ALD figure, rank, ALD share capsule,
+  segmented control for *Ringkasan* (ALD figure with its share, rank,
   sector bar list; provinces add Pemprov vs agregat) and *Rincian ALD*
   (sub-kegiatan grouped by kelompok; provinces list every kab/kota as
   disclosure rows that open their detail). `AnggaranNasional` ranks the
-  provinces on the national view. Caveats (stage unknown, Penunjang kept
-  apart, what the aggregate leaves out) are always shown as captions.
+  provinces on the national view. Glance-first: figures and bars carry the
+  message; the stage caveat lives in the subtitle, Penunjang in a context
+  line, and a province gets one short caption on what the aggregate leaves
+  out. Long RKPD indicator text is clamped to two lines under the target,
+  and funding sources are shortened to the names planners use (PAD, DAU,
+  DAK Sanitasi-Reguler, SiLPA).
 - Detail lists (`.ald-item`) are a four-column table on desktop and stacked
   rows on phones (amount stays top-right, the rest goes full width), using
   grid areas rather than a scrolling table.
