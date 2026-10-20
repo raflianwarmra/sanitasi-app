@@ -191,7 +191,8 @@ def main(folder, out):
             rkpd_codes[kode].add(clean(r['kode_ddn']))
         if kode and clean(r['kode_program']) == '1.03.05':
             ind, tgt = clean(r['tolak_ukur_output']), clean(r['target_teks_output'])
-            if ind and (ind, tgt) not in targets[(kode, clean(r['kode_sub_giat']))]:
+            # skip placeholder indicators ('0', '-') that carry no words
+            if re.search(r'[A-Za-z]', ind) and (ind, tgt) not in targets[(kode, clean(r['kode_sub_giat']))]:
                 targets[(kode, clean(r['kode_sub_giat']))].append((ind, tgt))
     print(f'RKPD: {len(rkpd_codes)} pemda, {len(targets)} pasangan pemda x sub-kegiatan ALD', flush=True)
 

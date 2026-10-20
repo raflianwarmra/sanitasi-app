@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import Chart from 'chart.js/auto';
-import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional, useLadderProvinsi, useKelembagaan } from '../hooks/useSheetData';
+import { useProvinsi, useKabkot, useIPAL, useIPLT, useNasional, useLadderNasional, useLadderProvinsi, useKelembagaan, useAnggaran, useAnggaranAld } from '../hooks/useSheetData';
 import { useTheme, cssVar } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
@@ -17,6 +17,7 @@ import ProvinceKabkotMap from '../components/ProvinceKabkotMap';
 import { MAP_METRICS } from '../lib/mapMetrics';
 import NationalView from '../components/NationalView';
 import PriorityIssueCards from '../components/PriorityIssueCards';
+import AnggaranCard from '../components/AnggaranCard';
 import LadderChart from '../components/LadderChart';
 import ExportButtons from '../components/ExportButtons';
 import EmptyState from '../components/EmptyState';
@@ -53,6 +54,8 @@ export default function Provinsi({ onNavigate }) {
   const { data: ladder } = useLadderNasional();
   const { data: ladderProv } = useLadderProvinsi();
   const { data: kelembagaan } = useKelembagaan();
+  const { data: anggaranRows, loading: anggaranLoading } = useAnggaran();
+  const { data: aldRows, loading: aldLoading } = useAnggaranAld();
   const { theme } = useTheme();
 
   // National is the default view; provinces sorted by BPS kode.
@@ -379,6 +382,8 @@ export default function Provinsi({ onNavigate }) {
             ipal={ipal}
             iplt={iplt}
             theme={theme}
+            anggaranRows={anggaranRows}
+            anggaranLoading={anggaranLoading}
             onOpenProvince={(kode) => withViewTransition(() => { setSelectedKode(String(kode).trim()); window.scrollTo(0, 0); })}
           />
         ) : (
@@ -451,6 +456,13 @@ export default function Provinsi({ onNavigate }) {
                 <MetricCard label="Unit tidak berfungsi" value={brokenUnits.length} unit="" sub="IPAL + IPLT" tone={brokenUnits.length ? 'bad' : 'ok'} />
               </div>
             </SectionCard>
+
+            <AnggaranCard
+              kode={provKode} nama={selectedProv.provinsi}
+              rows={anggaranRows} aldRows={aldRows} loading={anggaranLoading || aldLoading}
+              kabList={kabsInProv}
+              onOpenKab={(kode) => onNavigate(`/kabkota?provinsi=${encodeURIComponent(selectedProv.provinsi)}&kode=${encodeURIComponent(kode)}`)}
+            />
 
             {/* Priority issue cards */}
             <div>

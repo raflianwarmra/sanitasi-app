@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePresence, useFocusTrap, useDragDismiss, useZoomFromOrigin, rowLinkProps } from '../hooks/useOverlay';
 import { withViewTransition } from '../lib/viewTransition';
-import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot, useNasional, useBumd } from '../hooks/useSheetData';
+import { useKabkot, useKelembagaan, useIPAL, useIPLT, useLog, useLadderKabkot, useNasional, useBumd, useAnggaran, useAnggaranAld } from '../hooks/useSheetData';
 import { useTheme } from '../lib/theme';
 import { fmtPct, csvNum, slugify } from '../lib/format';
 import { downloadCsvSections } from '../lib/exportCsv';
@@ -20,6 +20,7 @@ import LoadingSpinner, { ErrorCard } from '../components/LoadingSpinner';
 import LogCatatanList from '../components/LogCatatanList';
 import SearchableSelect from '../components/SearchableSelect';
 import BumdCard from '../components/BumdCard';
+import AnggaranCard from '../components/AnggaranCard';
 import { findBumd } from '../lib/bumd';
 import { CLUSTER_LABELS, CLUSTER_COLORS, clusterLetter, rawClusterLetter } from '../lib/cluster';
 import { islandOf, islandPageProps } from '../lib/islandTheme';
@@ -254,6 +255,8 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
   const { data: ladderKab } = useLadderKabkot();
   const { data: nasional } = useNasional();
   const { data: bumdRows, loading: bumdLoading } = useBumd();
+  const { data: anggaranRows, loading: anggaranLoading } = useAnggaran();
+  const { data: aldRows, loading: aldLoading } = useAnggaranAld();
   const { theme } = useTheme();
   // Priority: URL deep-link (map click) -> persisted -> none.
   const [filterProv, setFilterProv] = useState(initialProvinsi || loadPref(KAB_PROV_KEY) || '');
@@ -532,6 +535,11 @@ export default function KabKota({ onNavigate, initialProvinsi, initialKode }) {
             })()}
           </SectionCard>
           <InfrastrukturCard kab={selectedKab} infraHere={infraHere} logs={logs} onOpenInfra={openInfra} />
+          <AnggaranCard
+            kode={selectedKab.kode} nama={selectedKab.kabkot}
+            rows={anggaranRows} aldRows={aldRows} loading={anggaranLoading || aldLoading}
+            infra={infraHere}
+          />
           <KelembagaanCard kel={kel} kab={selectedKab} />
           <BumdCard kab={selectedKab} bumd={bumd} loading={bumdLoading} rowCount={bumdRows.length} />
         </div>
